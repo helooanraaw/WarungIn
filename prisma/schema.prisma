@@ -1,0 +1,105 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  password_hash String
+  role          String   @default("OWNER") // OWNER | CASHIER
+  created_at    DateTime @default(now())
+  store         Store?
+}
+
+model Store {
+  id                  String         @id @default(cuid())
+  user_id             String         @unique
+  user                User           @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  store_name          String
+  slug                String         @unique
+  category            String         // Toko Kelontong / Warung Sembako, Butik & Pakaian, Toko Bahan Kue & Roti, Apotek Mini & Kesehatan, Kios Perlengkapan Harian
+  description         String
+  is_online_enabled   Boolean        @default(true)
+  whatsapp_number     String?        // Format: 628xxxxxxxxxx
+  account_holder_name String?
+  onboarding_attempts Int            @default(1)
+  created_at          DateTime       @default(now())
+  modules_config      ModulesConfig?
+  products            Product[]
+  transactions        Transaction[]
+}
+
+model ModulesConfig {
+  id                      String   @id @default(cuid())
+  store_id                String   @unique
+  store                   Store    @relation(fields: [store_id], references: [id], onDelete: Cascade)
+  enable_expiry_tracking  Boolean  @default(false)
+  enable_variant_matrix   Boolean  @default(false)
+  enable_wholesale_tier   Boolean  @default(false)
+  enable_shift_log        Boolean  @default(false)
+  enable_debt_book        Boolean  @default(false)
+  low_stock_threshold     Int      @default(10)
+  ai_summary_reason       String   @default("")
+  raw_onboarding_json     String   @default("{}")
+}
+
+model Product {
+  id               String      @id @default(cuid())
+  store_id         String
+  store            Store       @relation(fields: [store_id], references: [id], onDelete: Cascade)
+  sku              String
+  name             String
+  unit             String      @default("pcs")
+  cost_price       Int         @default(0)
+  sell_price       Int         @default(0)
+  wholesale_price  Int?
+  wholesale_min_qty Int?
+  stock_qty        Int         @default(0)
+  is_online        Boolean     @default(true)
+  variant_label    String?
+  expiry_date      String?     // Format YYYY-MM-DD jika enable_expiry_tracking aktif
+  created_at       DateTime    @default(now())
+  order_items      OrderItem[]
+
+  @@index([store_id, is_online])
+  @@index([store_id, stock_qty])
+}
+
+model Transaction {
+  id              String      @id @default(cuid())
+  store_id        String
+  store           Store       @relation(fields: [store_id], references: [id], onDelete: Cascade)
+  invoice_code    String      @unique
+  channel         String      // OFFLINE_POS | WHATSAPP_ONLINE
+  status          String      // COMPLETED | PENDING_CONFIRMATION | CANCELLED
+  payment_method  String      @default("TUNAI") // TUNAI | QRIS | TRANSFER | KASBON
+  customer_name   String?
+  customer_wa     String?
+  customer_note   String?
+  shift_name      String?     // Pagi | Sore | Malam
+  is_debt_paid    Boolean     @default(true)
+  total_amount    Int         @default(0)
+  created_at      DateTime    @default(now())
+  confirmed_at    DateTime?
+  items           OrderItem[]
+
+  @@index([store_id, status, created_at])
+  @@index([store_id, channel, created_at])
+}
+
+model OrderItem {
+  id             String      @id @default(cuid())
+  transaction_id String
+  transaction    Transaction @relation(fields: [transaction_id], references: [id], onDelete: Cascade)
+  product_id     String
+  product        Product     @relation(fields: [product_id], references: [id], onDelete: Cascade)
+  product_name   String
+  unit_price     Int
+  qty            Int
+  subtotal       Int
+}
