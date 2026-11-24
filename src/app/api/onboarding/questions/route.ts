@@ -27,7 +27,10 @@ export async function POST(req: Request) {
       description,
     });
 
-    return NextResponse.json(result);
+    return NextResponse.json({
+      questions: result.questions,
+      source: result.source,
+    });
   } catch (err: unknown) {
     const message =
       err instanceof Error

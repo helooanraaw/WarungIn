@@ -143,6 +143,8 @@ export async function POST(req: Request) {
       baseSlug = `${baseSlug}-${Math.floor(100 + Math.random() * 900)}`;
     }
 
+    const { model_used: _omitModel, ...publicProvisioned } = provisioned;
+
     if (user.store) {
       const updatedStore = await prisma.store.update({
         where: { id: user.store.id },
@@ -167,7 +169,10 @@ export async function POST(req: Request) {
         include: { modules_config: true },
       });
 
-      return NextResponse.json({ store: updatedStore, provisioned });
+      return NextResponse.json({
+        store: updatedStore,
+        provisioned: publicProvisioned,
+      });
     }
 
     const newStore = await prisma.store.create({
@@ -191,7 +196,7 @@ export async function POST(req: Request) {
       include: { modules_config: true },
     });
 
-    return NextResponse.json({ store: newStore, provisioned });
+    return NextResponse.json({ store: newStore, provisioned: publicProvisioned });
   } catch (err: unknown) {
     console.error("Onboarding provision error:", err);
     const message =

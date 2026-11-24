@@ -1,4 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Type, type Schema } from "@google/genai";
 
 export interface OnboardingQuestion {
   step: number;
@@ -36,18 +36,91 @@ export interface ProvisionedModulesResult {
   ai_summary_reason: string;
 }
 
-const AI_MODEL_PRIORITY = [
-  "gemini-3.5-flash-lite",
-  "gemini-2.5-flash",
-  "gemini-3.1-flash-lite-preview",
-  "gemini-3.8-flash",
-] as const;
+interface ModelCandidate {
+  model: string;
+  useThinkingZero: boolean;
+}
+
+const AI_MODEL_PRIORITY: readonly ModelCandidate[] = [
+  { model: "gemini-2.5-flash-lite", useThinkingZero: true },
+  { model: "gemini-2.5-flash", useThinkingZero: true },
+  { model: "gemini-3.5-flash-lite", useThinkingZero: false },
+];
+
+const QUESTIONS_SCHEMA: Schema = {
+  type: Type.ARRAY,
+  items: {
+    type: Type.OBJECT,
+    properties: {
+      title: { type: Type.STRING },
+      question: { type: Type.STRING },
+      notePrompt: { type: Type.STRING },
+      options: {
+        type: Type.ARRAY,
+        items: {
+          type: Type.OBJECT,
+          properties: {
+            label: { type: Type.STRING },
+            description: { type: Type.STRING },
+          },
+          required: ["label", "description"],
+        },
+      },
+    },
+    required: ["title", "question", "notePrompt", "options"],
+  },
+};
+
+const PROVISION_SCHEMA: Schema = {
+  type: Type.OBJECT,
+  properties: {
+    dashboard_template: { type: Type.STRING },
+    template_label: { type: Type.STRING },
+    enable_expiry_tracking: { type: Type.BOOLEAN },
+    enable_variant_matrix: { type: Type.BOOLEAN },
+    custom_attribute_label: { type: Type.STRING },
+    default_unit: { type: Type.STRING },
+    enable_wholesale_tier: { type: Type.BOOLEAN },
+    enable_manual_discount: { type: Type.BOOLEAN },
+    enable_shift_log: { type: Type.BOOLEAN },
+    enable_debt_book: { type: Type.BOOLEAN },
+    enable_delivery_note: { type: Type.BOOLEAN },
+    low_stock_threshold: { type: Type.INTEGER },
+    receipt_footer: { type: Type.STRING },
+    ai_summary_reason: { type: Type.STRING },
+  },
+  required: [
+    "dashboard_template",
+    "template_label",
+    "enable_expiry_tracking",
+    "enable_variant_matrix",
+    "custom_attribute_label",
+    "default_unit",
+    "enable_wholesale_tier",
+    "enable_manual_discount",
+    "enable_shift_log",
+    "enable_debt_book",
+    "enable_delivery_note",
+    "low_stock_threshold",
+    "receipt_footer",
+    "ai_summary_reason",
+  ],
+};
+
+interface CachedQuestionsEntry {
+  expiresAt: number;
+  questions: OnboardingQuestion[];
+  modelUsed: string;
+}
+
+const QUESTION_CACHE = new Map<string, CachedQuestionsEntry>();
+const QUESTION_CACHE_TTL_MS = 10 * 60 * 1000;
 
 function getAiClient(): GoogleGenAI {
   const apiKey = process.env.GEMINI_API_KEY?.trim();
   if (!apiKey) {
     throw new Error(
-      "GEMINI_API_KEY belum diisi di file .env. Silakan masukkan API Key Google Gemini terlebih dahulu."
+      "Kunci layanan belum terpasang di server. Silakan hubungi pengelola aplikasi."
     );
   }
   return new GoogleGenAI({
@@ -65,35 +138,55 @@ function extractJsonText(raw: string): string {
   return trimmed;
 }
 
+function cleanText(value: unknown, fallback = ""): string {
+  return String(value ?? fallback)
+    .replace(/\u2014/g, "-")
+    .trim();
+}
+
 async function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function generateJsonWithCascade(
-  prompt: string,
-  timeoutMs = 14000
-): Promise<{ parsed: unknown; modelUsed: string }> {
+async function generateJsonWithCascade(params: {
+  prompt: string;
+  responseSchema: Schema;
+  maxOutputTokens: number;
+  temperature: number;
+  timeoutMs?: number;
+}): Promise<{ parsed: unknown; modelUsed: string }> {
   const ai = getAiClient();
   const errors: string[] = [];
+  const timeoutMs = params.timeoutMs ?? 7500;
 
   for (let pass = 0; pass < 2; pass++) {
     if (pass === 1) {
-      await sleep(1200);
+      await sleep(500);
     }
-    for (const model of AI_MODEL_PRIORITY) {
+
+    const candidates =
+      pass === 0 ? AI_MODEL_PRIORITY : AI_MODEL_PRIORITY.slice(0, 2);
+
+    for (const candidate of candidates) {
       try {
         const timeoutPromise = new Promise<never>((_, reject) =>
           setTimeout(
-            () => reject(new Error(`Waktu tunggu habis (${timeoutMs}ms)`)),
+            () => reject(new Error(`Timeout (${timeoutMs}ms)`)),
             timeoutMs
           )
         );
 
         const genPromise = ai.models.generateContent({
-          model,
-          contents: prompt,
+          model: candidate.model,
+          contents: params.prompt,
           config: {
             responseMimeType: "application/json",
+            responseSchema: params.responseSchema,
+            maxOutputTokens: params.maxOutputTokens,
+            temperature: params.temperature,
+            ...(candidate.useThinkingZero
+              ? { thinkingConfig: { thinkingBudget: 0 } }
+              : {}),
           },
         });
 
@@ -101,25 +194,25 @@ async function generateJsonWithCascade(
         const text = response?.text?.trim();
         if (text) {
           const parsed = JSON.parse(extractJsonText(text));
-          return { parsed, modelUsed: model };
+          return { parsed, modelUsed: candidate.model };
         }
-        errors.push(`${model}: respons kosong`);
+        errors.push(`${candidate.model}: respons kosong`);
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
-        errors.push(`${model}: ${msg}`);
+        errors.push(`${candidate.model}: ${msg}`);
       }
     }
   }
 
+  console.error("[ai-onboarding] Semua kandidat model gagal:", errors.join(" | "));
   throw new Error(
-    `Server AI sedang sibuk, silakan klik tombol sekali lagi (${errors[0] || "503"})`
+    "Layanan penyesuaian otomatis sedang padat sebentar. Silakan tunggu beberapa detik lalu klik tombol sekali lagi."
   );
 }
 
 /**
- * Menghasilkan 3 pertanyaan wawancara yang benar-benar fleksibel sesuai barang yang dijual pengguna,
- * menggunakan bahasa sehari-hari yang mudah dipahami pengguna awam (tanpa istilah teknis).
- * Pengguna nantinya dapat mencentang lebih dari satu pilihan dan/atau menulis jawaban sendiri.
+ * Menghasilkan 3 pertanyaan onboarding yang ringkas, hemat token, dan relevan dengan barang jualan toko,
+ * memakai bahasa sehari-hari tanpa istilah teknis maupun nama model AI.
  */
 export async function generateOnboardingQuestionsAI(params: {
   storeName: string;
@@ -130,41 +223,27 @@ export async function generateOnboardingQuestionsAI(params: {
   source: "gemini";
   model_used: string;
 }> {
-  const prompt = `Kamu adalah pendamping ramah bagi pemilik warung dan toko ritel di Indonesia di aplikasi bernama Warungin.
-Seorang pengguna baru sedang mengatur tokonya:
-- Nama Toko: "${params.storeName}"
-- Jenis Usaha: "${params.category}"
-- Cerita Barang yang Dijual & Kebutuhan Toko: "${params.description}"
+  const storeName = params.storeName.trim().slice(0, 80);
+  const category = params.category.trim().slice(0, 60);
+  const description = params.description.trim().slice(0, 300);
 
-Tugasmu: Buat tepat 3 pertanyaan singkat (step 3, step 4, step 5) yang SANGAT FLEKSIBEL dan spesifik menyesuaikan jenis barang yang dijual toko tersebut.
-ATURAN BAHASA WAJIB:
-1. Gunakan bahasa sehari-hari yang sangat mudah dipahami orang awam (seperti ngobrol sopan dengan pemilik toko).
-2. JANGAN gunakan kata teknis seperti "ERP", "SKU", "Matriks Varian", "Tier Grosir", "Provisioning", atau "Modul". Gunakan kata sederhana seperti "tanggal kadaluarsa", "ukuran/warna/tipe", "harga beli banyak", "potongan diskon", "jaga kasir bergantian", "catatan bon/utang pelanggan", "diantar ke rumah pembeli".
-3. Jangan gunakan tanda em-dash (—).
-4. Pengguna nanti BISA MENCENTANG LEBIH DARI SATU PILIHAN sekaligus pada setiap pertanyaan, serta punya kotak "Lainnya / Tulis sendiri". Jadi buatlah 4 pilihan yang relevan dan saling melengkapi untuk usaha "${params.category}" tersebut!
+  const cacheKey = `${storeName.toLowerCase()}|${category.toLowerCase()}|${description.toLowerCase()}`;
+  const cached = QUESTION_CACHE.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) {
+    return {
+      questions: cached.questions,
+      source: "gemini",
+      model_used: cached.modelUsed,
+    };
+  }
 
-Cakupan 3 pertanyaan:
-- step 3 (Ciri Barang & Catatan Stok): Tanyakan ciri barang di "${params.storeName}" yang perlu dicatat di daftar stok (misal: apakah ada tanggal kadaluarsa/batas simpan, apakah perlu membedakan ukuran/warna/rasa/tipe/garansi/kemasan, satuan jual seperti pcs/kg/meter/bungkus, atau cukup catat nama dan jumlah saja).
-- step 4 (Cara Jualan & Harga di Kasir): Tanyakan kebiasaan melayani pembeli di meja kasir (misal: apakah beli banyak/grosir dapat harga lebih murah, apakah sering memberi potongan harga/diskon langsung saat transaksi, apakah kasir dijaga bergantian pagi dan sore/malam).
-- step 5 (Pembayaran, Pengantaran & Pengingat Belanja Stok): Tanyakan kebiasaan pembayaran pelanggan dan pengingat stok (misal: apakah menerima catatan bon/bayar nanti untuk pelanggan langganan, apakah menerima pesanan minta diantar ke alamat pembeli lewat WhatsApp, dan ingin diingatkan saat sisa stok tinggal sedikit).
-
-Kembalikan HANYA JSON array berisi tepat 3 objek dengan struktur persis berikut:
-[
-  {
-    "step": 3,
-    "title": "Judul singkat yang mudah dipahami",
-    "question": "Pertanyaan ramah menyebut nama toko/barang jualan mereka (beri petunjuk singkat bahwa boleh pilih lebih dari satu)",
-    "notePrompt": "Kalimat ajakan ramah untuk menulis sendiri jika ada ciri barang lain atau satuan khusus yang belum tertulis di atas",
-    "options": [
-      { "id": "opt_3_1", "label": "Kalimat pilihan 1 yang jelas", "description": "Penjelasan singkat manfaatnya bagi toko" },
-      { "id": "opt_3_2", "label": "Kalimat pilihan 2 yang jelas", "description": "Penjelasan singkat manfaatnya bagi toko" },
-      { "id": "opt_3_3", "label": "Kalimat pilihan 3 yang jelas", "description": "Penjelasan singkat manfaatnya bagi toko" },
-      { "id": "opt_3_4", "label": "Kalimat pilihan 4 yang jelas", "description": "Penjelasan singkat manfaatnya bagi toko" }
-    ]
-  },
-  { "step": 4, "title": "...", "question": "...", "notePrompt": "...", "options": [ ...4 item... ] },
-  { "step": 5, "title": "...", "question": "...", "notePrompt": "...", "options": [ ...4 item... ] }
-]`;
+  const prompt = `Pendamping ramah Warungin untuk toko "${storeName}" (Usaha: "${category}").
+Dagangan & kebutuhan: "${description}".
+Buat tepat 3 pertanyaan (array 3 objek) dengan bahasa sehari-hari akrab (sapa "Anda", hindari "Kak", dilarang kata teknis ERP/SKU/varian/tier/modul atau tanda em-dash). Tiap pertanyaan berisi 4 opsi saling melengkapi (pengguna boleh centang >1):
+1. Ciri pembeda barang dagangan ini (misal ukuran/warna/rasa/tipe/garansi/tanggal kedaluwarsa bila relevan) beserta satuannya (pcs/kg/bungkus/dll).
+2. Kebiasaan jualan di kasir (harga beli banyak/grosir, potongan diskon, atau jaga kasir bergantian).
+3. Pembayaran pelanggan (catatan bon/kasbon), kirim pesanan via WhatsApp, dan pengingat stok hampir habis.
+Buat sangat ringkas: title <=4 kata, label <=7 kata, description <=12 kata, notePrompt <=9 kata.`;
 
   interface RawQuestionItem {
     title?: string;
@@ -178,37 +257,48 @@ Kembalikan HANYA JSON array berisi tepat 3 objek dengan struktur persis berikut:
     }[];
   }
 
-  const { parsed, modelUsed } = await generateJsonWithCascade(prompt);
+  const { parsed, modelUsed } = await generateJsonWithCascade({
+    prompt,
+    responseSchema: QUESTIONS_SCHEMA,
+    maxOutputTokens: 1100,
+    temperature: 0.3,
+  });
+
   const parsedObj = parsed as { questions?: RawQuestionItem[] } | RawQuestionItem[];
   const list = Array.isArray(parsedObj) ? parsedObj : parsedObj?.questions;
 
   if (!Array.isArray(list) || list.length !== 3) {
-    throw new Error("Format pertanyaan dari Gemini AI tidak sesuai.");
+    throw new Error("Format pertanyaan belum lengkap. Silakan coba sekali lagi.");
   }
 
   const questions: OnboardingQuestion[] = list.map((q, idx) => {
     if (!q?.question || !Array.isArray(q?.options) || q.options.length < 2) {
-      throw new Error("Pilihan jawaban dari Gemini AI belum lengkap.");
+      throw new Error("Pilihan pertanyaan belum lengkap. Silakan coba sekali lagi.");
     }
     return {
       step: idx + 3,
-      title: String(q.title || `Pertanyaan ${idx + 1}`).replace(/—/g, "-"),
-      question: String(q.question).replace(/—/g, "-"),
-      notePrompt: String(
-        q.notePrompt ||
-          "Ada kebutuhan lain yang belum ada di pilihan atas? Tulis singkat di sini:"
-      ).replace(/—/g, "-"),
-      options: q.options.map(
-        (
-          opt: { id?: string; label?: string; value?: string; description?: string },
-          oIdx: number
-        ) => ({
-          id: String(opt.id || opt.value || `opt_${idx + 3}_${oIdx + 1}`),
-          label: String(opt.label || "").replace(/—/g, "-"),
-          description: String(opt.description || "").replace(/—/g, "-"),
-        })
+      title: cleanText(q.title, `Pertanyaan ${idx + 1}`),
+      question: cleanText(q.question),
+      notePrompt: cleanText(
+        q.notePrompt,
+        "Ada tambahan khusus untuk toko Anda? Tulis di sini:"
       ),
+      options: q.options.slice(0, 4).map((opt, oIdx) => ({
+        id: cleanText(opt.id || opt.value, `opt_${idx + 3}_${oIdx + 1}`),
+        label: cleanText(opt.label),
+        description: cleanText(opt.description),
+      })),
     };
+  });
+
+  if (QUESTION_CACHE.size >= 100) {
+    const oldestKey = QUESTION_CACHE.keys().next().value;
+    if (oldestKey) QUESTION_CACHE.delete(oldestKey);
+  }
+  QUESTION_CACHE.set(cacheKey, {
+    expiresAt: Date.now() + QUESTION_CACHE_TTL_MS,
+    questions,
+    modelUsed,
   });
 
   return {
@@ -219,8 +309,8 @@ Kembalikan HANYA JSON array berisi tepat 3 objek dengan struktur persis berikut:
 }
 
 /**
- * Menganalisis jawaban fleksibel pengguna (pilihan multi-centang + jawaban ketikan sendiri)
- * untuk menyiapkan tampilan dashboard, kolom barang dinamis, satuan bawaan, dan fitur kasir yang pas.
+ * Menganalisis profil usaha dan jawaban singkat pemilik toko secara hemat token dan akurat
+ * untuk menyetel menu kasir, catatan stok, serta tampilan toko online yang sesuai.
  */
 export async function provisionModulesWithAI(params: {
   storeName: string;
@@ -231,51 +321,38 @@ export async function provisionModulesWithAI(params: {
   step4: StepAnswerInput;
   step5: StepAnswerInput;
 }): Promise<ProvisionedModulesResult> {
-  const formatStep = (s: StepAnswerInput) => {
+  const formatCompactStep = (label: string, s: StepAnswerInput) => {
     const picked =
-      s.selectedLabels.length > 0
-        ? s.selectedLabels.join("; ")
-        : "(Tidak memilih opsi daftar)";
-    const extra = s.customNote ? s.customNote : "-";
-    return `Pertanyaan: "${s.question}"\n  Pilihan yang dicentang: ${picked}\n  Catatan tambahan pengguna: "${extra}"`;
+      s.selectedLabels.length > 0 ? s.selectedLabels.join("; ") : "-";
+    const extra = s.customNote ? s.customNote.slice(0, 220) : "-";
+    return `${label}: dipilih=[${picked}] | tambahan="${extra}"`;
   };
 
-  const prompt = `Kamu adalah perancang halaman kasir dan toko online Warungin.
-Baca baik-baik profil dan seluruh jawaban pemilik toko berikut, lalu sesuaikan fitur halaman kerja agar benar-benar pas dengan apa yang mereka jual dan butuhkan (jangan mengaktifkan fitur yang tidak mereka butuhkan supaya layar tetap rapi):
+  const prompt = `Atur menu toko Warungin agar hanya menyalakan fitur yang benar-benar dibutuhkan:
+Toko: "${params.storeName.slice(0, 80)}" | Usaha: "${params.category.slice(0, 60)}" | Online WA: ${params.isOnlineEnabled ? "Ya" : "Tidak"}
+Jualan: "${params.description.slice(0, 300)}"
+${formatCompactStep("1. Ciri Barang & Satuan", params.step3)}
+${formatCompactStep("2. Kasir & Harga", params.step4)}
+${formatCompactStep("3. Bayar, Antar & Stok", params.step5)}
 
-- Nama Toko: "${params.storeName}"
-- Jenis Usaha: "${params.category}"
-- Barang yang Dijual & Kebutuhan Utama: "${params.description}"
-- Membuka Katalog Online WhatsApp: ${params.isOnlineEnabled ? "Ya" : "Tidak"}
+Aturan:
+- dashboard_template: SEMBAKO_GROSIR | MAKANAN_EXPIRY | FASHION_VARIAN | ELEKTRONIK_GARANSI | RITEL_KUSTOM
+- template_label: nama singkat ramah (cth: Pengaturan Konter Aksesoris & Garansi)
+- enable_expiry_tracking: true HANYA jika barang bisa basi/kedaluwarsa
+- enable_variant_matrix: true jika butuh pembeda ukuran/warna/rasa/tipe/garansi; custom_attribute_label: 2-3 kata paling pas
+- default_unit: 1 kata kecil (pcs/kg/bungkus/cup/porsi/meter/dll)
+- enable_wholesale_tier: beli banyak lebih murah; enable_manual_discount: diskon kasir; enable_shift_log: jaga bergantian; enable_debt_book: catatan kasbon; enable_delivery_note: pilih ambil sendiri atau diantar
+- low_stock_threshold: angka wajar (pakai angka yang disebut pengguna bila ada)
+- receipt_footer: pesan singkat bawah struk
+- ai_summary_reason: 2 kalimat untuk pemilik toko dalam bahasa sehari-hari (tanpa kata teknis/em-dash) menjelaskan menu apa saja yang dinyalakan di kasir dan stok.`;
 
-Jawaban Langkah 3 (Stok & Ciri Barang):
-${formatStep(params.step3)}
+  const { parsed: rawParsed, modelUsed } = await generateJsonWithCascade({
+    prompt,
+    responseSchema: PROVISION_SCHEMA,
+    maxOutputTokens: 550,
+    temperature: 0.15,
+  });
 
-Jawaban Langkah 4 (Harga & Kasir):
-${formatStep(params.step4)}
-
-Jawaban Langkah 5 (Pembayaran, Pengantaran & Pengingat Stok):
-${formatStep(params.step5)}
-
-Kembalikan HANYA satu objek JSON murni dengan struktur persis berikut (gunakan bahasa sehari-hari yang mudah dipahami, tanpa tanda em-dash):
-{
-  "dashboard_template": "kode singkat seperti SEMBAKO_GROSIR | MAKANAN_EXPIRY | FASHION_VARIAN | ELEKTRONIK_GARANSI | RITEL_KUSTOM",
-  "template_label": "Nama pengaturan tampilan yang ramah dan sesuai usaha mereka (contoh: Pengaturan Toko Pakan Hewan & Grosir, atau Pengaturan Konter Aksesoris & Garansi)",
-  "enable_expiry_tracking": boolean (true HANYA jika barang mereka punya tanggal kadaluarsa / batas simpan yang perlu dipantau),
-  "enable_variant_matrix": boolean (true jika barang mereka butuh kolom keterangan pembeda seperti Ukuran/Warna, Berat Kemasan, Rasa, Tipe HP, atau Masa Garansi),
-  "custom_attribute_label": "Nama kolom pembeda barang yang paling cocok dengan jualan mereka (contoh: 'Ukuran & Warna', 'Berat / Kemasan', 'Tipe / Masa Garansi', 'Rasa / Pilihan'). Isi string singkat 2-3 kata.",
-  "default_unit": "Satuan barang paling umum di toko mereka dalam 1 kata kecil (contoh: 'pcs', 'bungkus', 'kg', 'meter', 'botol', 'strip', 'porsi', 'karung')",
-  "enable_wholesale_tier": boolean (true jika mereka melayani harga lebih murah untuk pembelian banyak / grosir),
-  "enable_manual_discount": boolean (true jika mereka butuh fitur potongan harga / diskon langsung di kasir),
-  "enable_shift_log": boolean (true jika kasir dijaga bergantian pagi/sore/malam oleh karyawan),
-  "enable_debt_book": boolean (true jika mereka melayani catatan bon / bayar belakangan / kasbon pelanggan),
-  "enable_delivery_note": boolean (true jika katalog online perlu pilihan Ambil di Toko atau Diantar ke Alamat Pembeli),
-  "low_stock_threshold": number (angka batas pengingat sisa stok tipis yang masuk akal untuk usaha mereka, misal 3, 5, 10, atau sesuai angka yang disebut pengguna),
-  "receipt_footer": "Kalimat penutup ramah di bagian bawah struk belanja toko ini (gunakan pesan pengguna jika mereka menuliskannya)",
-  "ai_summary_reason": "Penjelasan ramah dalam 2 kalimat sederhana (mudah dipahami orang awam, tanpa kata teknis seperti ERP/SKU/Modul) tentang fitur apa saja yang sudah disiapkan untuk memudahkan jualan di toko mereka"
-}`;
-
-  const { parsed: rawParsed, modelUsed } = await generateJsonWithCascade(prompt);
   const parsed = rawParsed as Record<string, unknown>;
 
   if (
@@ -285,18 +362,18 @@ Kembalikan HANYA satu objek JSON murni dengan struktur persis berikut (gunakan b
     !parsed.template_label ||
     !parsed.ai_summary_reason
   ) {
-    throw new Error("Hasil penyesuaian fitur dari Gemini AI belum lengkap.");
+    throw new Error("Hasil penyesuaian menu belum lengkap. Silakan coba sekali lagi.");
   }
 
   return {
     model_used: modelUsed,
-    dashboard_template: String(parsed.dashboard_template || "RITEL_KUSTOM"),
-    template_label: String(parsed.template_label).replace(/—/g, "-"),
-    custom_attribute_label: String(
-      parsed.custom_attribute_label || "Ukuran / Pilihan"
-    ).replace(/—/g, "-"),
-    default_unit: String(parsed.default_unit || "pcs")
-      .trim()
+    dashboard_template: cleanText(parsed.dashboard_template, "RITEL_KUSTOM"),
+    template_label: cleanText(parsed.template_label),
+    custom_attribute_label: cleanText(
+      parsed.custom_attribute_label,
+      "Ukuran / Pilihan"
+    ),
+    default_unit: cleanText(parsed.default_unit, "pcs")
       .toLowerCase()
       .slice(0, 20),
     enable_expiry_tracking: Boolean(parsed.enable_expiry_tracking),
@@ -310,10 +387,10 @@ Kembalikan HANYA satu objek JSON murni dengan struktur persis berikut (gunakan b
         ? Boolean(parsed.enable_delivery_note)
         : true,
     low_stock_threshold: Math.max(1, Number(parsed.low_stock_threshold) || 5),
-    receipt_footer: String(
-      parsed.receipt_footer ||
-        `Terima kasih sudah berbelanja di ${params.storeName}.`
-    ).replace(/—/g, "-"),
-    ai_summary_reason: String(parsed.ai_summary_reason).replace(/—/g, "-"),
+    receipt_footer: cleanText(
+      parsed.receipt_footer,
+      `Terima kasih sudah berbelanja di ${params.storeName}.`
+    ),
+    ai_summary_reason: cleanText(parsed.ai_summary_reason),
   };
 }
