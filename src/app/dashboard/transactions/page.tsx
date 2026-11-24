@@ -108,25 +108,25 @@ export default function TransactionsHistoryPage() {
   return (
     <div>
       <PageHeader
-        title="Riwayat Transaksi"
-        subtitle="Catatan seluruh penjualan dari meja kasir maupun pesanan WhatsApp."
-        breadcrumb="Riwayat Transaksi"
+        title="Catatan Penjualan"
+        subtitle="Daftar semua pembelian di kasir toko maupun pesanan lewat WhatsApp."
+        breadcrumb="Catatan Penjualan"
       />
 
       {/* RINGKASAN METRIK TRANSAKSI */}
       <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
         <div className="op-card col-span-2 p-3.5 sm:col-span-1 sm:p-4">
-          <div className="text-xs text-[#5f6f82]">Total Penjualan Selesai</div>
+          <div className="text-xs text-[#5f6f82]">Total Uang Masuk</div>
           <div className="mt-1 text-lg text-[#22303c] tabular-nums">
             {fmtRp(totalRevenue)}
           </div>
         </div>
         <div className="op-card p-3.5 sm:p-4">
           <div className="text-[11px] text-[#5f6f82] sm:text-xs">
-            Nota Selesai
+            Pembelian Selesai
           </div>
           <div className="mt-1 text-base text-[#22303c] tabular-nums sm:text-lg">
-            {completedList.length} transaksi
+            {completedList.length} kali
           </div>
         </div>
         <div className="op-card p-3.5 sm:p-4">

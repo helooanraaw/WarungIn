@@ -103,7 +103,7 @@ export default function LoginPage() {
               disabled={loading}
               className="op-btn op-btn-primary w-full"
             >
-              {loading ? "Memproses..." : "Masuk ke Dashboard"}
+              {loading ? "Memproses..." : "Masuk ke Toko"}
             </button>
           </form>
 

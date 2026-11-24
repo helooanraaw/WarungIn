@@ -118,14 +118,14 @@ export default function StoreDirectoryPage() {
       <section className="border-b border-[#ddd3c2] bg-[#faf6ef] py-7 sm:py-10">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <div className="text-xs tracking-wider text-[#57534a]">
-            DAFTAR TOKO ONLINE
+            LIST TOKO
           </div>
           <h1 className="mt-1 text-2xl text-[#0a0a0a] sm:text-3xl">
-            Semua toko aktif di Warungin
+            Semua toko di Warungin
           </h1>
           <p className="mt-2 max-w-2xl text-xs leading-relaxed text-[#57534a] sm:text-sm">
-            Lihat profil usaha, alamat, kategori, dan jumlah barang yang siap
-            dipesan sebelum membuka halaman etalase masing-masing toko.
+            Lihat profil usaha, alamat, dan jumlah barang yang dijual sebelum
+            membuka halaman tokonya.
           </p>
 
           <div className="mt-5 flex flex-col gap-3 sm:mt-6">
@@ -238,7 +238,6 @@ export default function StoreDirectoryPage() {
           <>
             <div className="mb-5 text-xs text-[#57534a] tabular-nums">
               Menampilkan {filteredStores.length} dari {stores.length} toko
-              aktif
             </div>
 
             <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
@@ -304,7 +303,7 @@ export default function StoreDirectoryPage() {
                       <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-[#57534a]">
                         <span className="inline-flex items-center gap-1.5 tabular-nums">
                           <Package className="h-3.5 w-3.5 text-[#1a76d1]" />
-                          {store.product_count} barang tersedia
+                          {store.product_count} barang
                         </span>
                         {store.total_sold > 0 && (
                           <span className="inline-flex items-center gap-1.5 tabular-nums">
@@ -314,7 +313,7 @@ export default function StoreDirectoryPage() {
                         )}
                         {store.has_whatsapp && (
                           <span className="rounded-full bg-[#e4f4ea] px-2.5 py-0.5 text-[11px] text-[#27764c]">
-                            Pesan via WhatsApp
+                            Pesan lewat WhatsApp
                           </span>
                         )}
                       </div>
@@ -323,13 +322,13 @@ export default function StoreDirectoryPage() {
 
                   <div className="mt-5 flex items-center justify-between gap-3 border-t border-[#eee7da] bg-[#fffdf9] px-5 py-3.5 sm:px-6 sm:py-4">
                     <span className="hidden truncate text-xs text-[#57534a] sm:inline">
-                      /toko/{store.slug}
+                      Kunjungi halaman toko
                     </span>
                     <Link
                       href={`/toko/${store.slug}`}
                       className="inline-flex min-h-[44px] w-full shrink-0 items-center justify-center gap-1.5 rounded-full bg-[#1a76d1] px-4 py-2 text-xs text-white transition-colors hover:bg-[#1565c0] sm:min-h-0 sm:w-auto"
                     >
-                      <span>Lihat Katalog Toko</span>
+                      <span>Lihat Toko</span>
                       <ArrowRight className="h-3.5 w-3.5" />
                     </Link>
                   </div>

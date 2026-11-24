@@ -33,7 +33,6 @@ export default function OnboardingPage() {
   const [accountHolderName, setAccountHolderName] = useState("");
 
   const [questions, setQuestions] = useState<OnboardingQuestion[]>([]);
-  const [modelUsed, setModelUsed] = useState<string>("");
 
   // Jawaban fleksibel: pengguna boleh mencentang beberapa pilihan + menulis sendiri
   const [selectedIds, setSelectedIds] = useState<Record<number, string[]>>({
@@ -169,7 +168,6 @@ export default function OnboardingPage() {
       }
 
       setQuestions(data.questions);
-      setModelUsed(data.model_used || "gemini");
       setStep(3);
     } catch {
       setError("Gagal menghubungi server AI. Silakan coba lagi.");
@@ -255,7 +253,7 @@ export default function OnboardingPage() {
             href="/dashboard"
             className="inline-flex min-h-[40px] shrink-0 items-center hover:text-[#22303c] sm:min-h-0"
           >
-            Ke Dashboard
+            Buka Toko Saya
           </Link>
         </div>
 
@@ -290,8 +288,8 @@ export default function OnboardingPage() {
                 </h1>
                 <p className="mt-1 text-xs leading-relaxed text-[#5f6f82]">
                   Apa pun yang Anda jual, tulis saja dengan bahasa sehari-hari.
-                  Sistem akan menyiapkan tampilan kasir dan catatan stok yang
-                  paling pas untuk usaha Anda.
+                  Tampilan kasir dan catatan barang akan langsung menyesuaikan
+                  kebutuhan usaha Anda.
                 </p>
               </div>
 
@@ -587,7 +585,7 @@ export default function OnboardingPage() {
                     {currentQuestion.title}
                   </span>
                   <span className="op-tag op-tag-info">
-                    Disesuaikan AI ({modelUsed})
+                    Disesuaikan untuk Toko Anda
                   </span>
                 </div>
                 <h2 className="mt-1.5 text-base leading-snug text-[#22303c]">
@@ -700,9 +698,7 @@ export default function OnboardingPage() {
                   <Check className="h-4 w-4" />
                   <span>Halaman Toko Siap Digunakan</span>
                 </div>
-                <span className="op-tag op-tag-info">
-                  {provisionResult.model_used}
-                </span>
+                <span className="op-tag op-tag-success">Siap Dipakai</span>
               </div>
 
               <div className="rounded-[5px] border border-[#bfdbfe] bg-[#eff6ff] p-4">
@@ -837,7 +833,7 @@ export default function OnboardingPage() {
                   onClick={() => router.push("/dashboard")}
                   className="op-btn op-btn-primary w-full sm:w-auto"
                 >
-                  Masuk ke Dashboard Toko Saya
+                  Masuk ke Halaman Toko Saya
                 </button>
               </div>
             </div>

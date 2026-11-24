@@ -108,13 +108,13 @@ export default function LandingPage() {
 
           <nav className="hidden items-center gap-7 text-sm text-[#57534a] md:flex">
             <a href="#preview" className="hover:text-[#0a0a0a]">
-              Tampilan Sistem
+              Tampilan Aplikasi
             </a>
             <a href="#etalase" className="hover:text-[#0a0a0a]">
-              Etalase Toko
+              List Toko
             </a>
             <a href="#cara-kerja" className="hover:text-[#0a0a0a]">
-              Cara Pakai
+              Cara Mulai
             </a>
           </nav>
 
@@ -169,28 +169,28 @@ export default function LandingPage() {
                 onClick={() => setMobileNavOpen(false)}
                 className="flex min-h-[44px] items-center rounded-xl px-3 hover:bg-[#faf6ef]"
               >
-                Tampilan Sistem
+                Tampilan Aplikasi
               </a>
               <a
                 href="#etalase"
                 onClick={() => setMobileNavOpen(false)}
                 className="flex min-h-[44px] items-center rounded-xl px-3 hover:bg-[#faf6ef]"
               >
-                Etalase Toko
+                List Toko
               </a>
               <Link
                 href="/toko"
                 onClick={() => setMobileNavOpen(false)}
                 className="flex min-h-[44px] items-center rounded-xl px-3 hover:bg-[#faf6ef]"
               >
-                Daftar Semua Toko
+                Semua Toko
               </Link>
               <a
                 href="#cara-kerja"
                 onClick={() => setMobileNavOpen(false)}
                 className="flex min-h-[44px] items-center rounded-xl px-3 hover:bg-[#faf6ef]"
               >
-                Cara Pakai
+                Cara Mulai
               </a>
             </nav>
             <div className="mt-3 grid grid-cols-2 gap-2 border-t border-[#eee7da] pt-3">
@@ -222,14 +222,14 @@ export default function LandingPage() {
         <div className="grid grid-cols-1 items-center gap-8 lg:grid-cols-12 lg:gap-10">
           <div className="lg:col-span-6">
             <h1 data-motion-item className="text-[28px] leading-snug tracking-tight text-[#0a0a0a] sm:text-4xl lg:text-[42px] lg:leading-[1.22]">
-              Catat jualan kasir, sisa stok, dan toko online WhatsApp dari satu
-              halaman.
+              Catat jualan harian, pantau stok barang, dan punya toko online
+              sendiri dari satu tempat.
             </h1>
             <p data-motion-item className="mt-3.5 text-sm leading-relaxed text-[#57534a] sm:mt-4 sm:text-[17px]">
-              Cocok untuk warung sembako, toko kue, toko baju, konter aksesoris,
-              hingga petshop. Cukup ceritakan apa yang Anda jual saat mendaftar,
-              lalu tampilan kasir dan catatan barang langsung menyesuaikan
-              kebutuhan toko Anda.
+              Cocok untuk warung sembako, toko kue, toko baju, konter HP, hingga
+              petshop. Ceritakan saja barang dagangan Anda saat mendaftar, lalu
+              tampilan kasir dan catatan stoknya langsung mengikuti kebutuhan
+              toko.
             </p>
 
             <div data-motion-item className="mt-6 flex flex-col gap-2.5 sm:mt-7 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
@@ -244,7 +244,7 @@ export default function LandingPage() {
                 href="#etalase"
                 className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-full border border-[#ddd3c2] bg-[#faf6ef] px-6 py-3 text-sm text-[#0a0a0a] transition-colors hover:bg-[#f3ede2] sm:w-auto"
               >
-                <span>Lihat Etalase Toko</span>
+                <span>Lihat List Toko</span>
               </a>
             </div>
 
@@ -258,13 +258,13 @@ export default function LandingPage() {
               <div>
                 <div className="text-[#0a0a0a]">Toko Online Sendiri</div>
                 <div className="mt-0.5 text-xs text-[#57534a]">
-                  Lengkap foto barang, logo, & banner
+                  Sudah ada foto barang, logo, dan sampul toko
                 </div>
               </div>
               <div>
-                <div className="text-[#0a0a0a]">Stok Tidak Bentrok</div>
+                <div className="text-[#0a0a0a]">Stok Selalu Rapi</div>
                 <div className="mt-0.5 text-xs text-[#57534a]">
-                  Kasir toko & pesanan WA satu pintu
+                  Penjualan kasir dan WhatsApp tercatat rapi
                 </div>
               </div>
             </div>
@@ -279,12 +279,12 @@ export default function LandingPage() {
                   <span className="h-2.5 w-2.5 rounded-full bg-[#ddd3c2]" />
                   <span className="h-2.5 w-2.5 rounded-full bg-[#ddd3c2]" />
                 </div>
-                <span className="truncate pl-2">Halaman Dashboard & Ringkasan Toko</span>
+                <span className="truncate pl-2">Contoh Tampilan Awal Toko</span>
               </div>
               <div className="overflow-hidden rounded-xl border border-[#ddd3c2] bg-white">
                 <img
                   src="/images/mockups/hero-dashboard.png"
-                  alt="Mockup Dashboard Warungin"
+                  alt="Tampilan Awal Warungin"
                   className="aspect-[16/10] w-full object-cover"
                 />
               </div>
@@ -304,15 +304,14 @@ export default function LandingPage() {
           <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end sm:gap-5">
             <div className="max-w-2xl">
               <div className="text-xs tracking-wider text-[#57534a]">
-                TAMPILAN SISTEM
+                TAMPILAN APLIKASI
               </div>
               <h2 className="mt-1 text-2xl text-[#0a0a0a] sm:text-3xl">
-                Satu aplikasi untuk meja kasir sekaligus halaman belanja pembeli.
+                Satu tempat untuk melayani pembeli di toko maupun lewat HP.
               </h2>
               <p className="mt-2 text-sm leading-relaxed text-[#57534a] sm:text-base">
-                Tidak perlu bingung dengan tombol yang rumit. Semua menu dibuat
-                bersih dan hanya memunculkan kolom yang memang dibutuhkan usaha
-                Anda.
+                Tombolnya dibuat sederhana dan tidak membingungkan. Hanya kolom
+                yang memang dipakai usaha Anda sehari-hari yang dimunculkan.
               </p>
             </div>
 
@@ -326,7 +325,7 @@ export default function LandingPage() {
                     : "border border-[#ddd3c2] bg-[#faf6ef] text-[#0a0a0a] hover:bg-[#f3ede2]"
                 }`}
               >
-                1. Kasir & Stok
+                1. Kasir & Catatan Stok
               </button>
               <button
                 type="button"
@@ -337,7 +336,7 @@ export default function LandingPage() {
                     : "border border-[#ddd3c2] bg-[#faf6ef] text-[#0a0a0a] hover:bg-[#f3ede2]"
                 }`}
               >
-                2. Toko Online
+                2. Toko Online Pembeli
               </button>
             </div>
           </div>
@@ -350,13 +349,13 @@ export default function LandingPage() {
                   {activeMockup === "kasir" ? (
                     <img
                       src="/images/mockups/mockup-kasir-pos.png"
-                      alt="Mockup Kasir dan Stok Warungin"
+                      alt="Tampilan Kasir dan Stok Warungin"
                       className="aspect-[16/10] w-full object-cover"
                     />
                   ) : (
                     <img
                       src="/images/mockups/mockup-katalog-wa.png"
-                      alt="Mockup Katalog Online E-Commerce Warungin"
+                      alt="Tampilan Toko Online Pembeli Warungin"
                       className="aspect-[16/10] w-full object-cover"
                     />
                   )}
@@ -373,20 +372,20 @@ export default function LandingPage() {
                       Hitung belanjaan & kembalian tanpa salah hitung
                     </h3>
                     <p className="mt-1.5 text-sm leading-relaxed text-[#57534a]">
-                      Klik barang yang dibeli pelanggan, atur jumlahnya, lalu
-                      sistem otomatis menghitung total, harga beli banyak
-                      (grosir), uang kembalian, hingga mencetak atau mengirim
-                      struk ke WhatsApp.
+                      Pilih barang yang dibeli pelanggan, atur jumlahnya, lalu
+                      total belanja, harga beli banyak, dan uang kembalian
+                      langsung dihitung. Struk juga bisa dicetak atau dikirim
+                      ke WhatsApp pembeli.
                     </p>
                   </div>
                   <div className="rounded-xl border border-[#ddd3c2] bg-[#faf6ef] p-5">
                     <h3 className="text-base text-[#0a0a0a]">
-                      Kolom stok menyesuaikan barang dagangan Anda
+                      Catatan stok mengikuti jenis dagangan Anda
                     </h3>
                     <p className="mt-1.5 text-sm leading-relaxed text-[#57534a]">
-                      Jual makanan ada pengingat tanggal kadaluarsa, jual baju
-                      ada ukuran & warna, jual elektronik ada masa garansi, dan
-                      kalau ada langganan tetangga tersedia catatan bon/kasbon.
+                      Jual makanan ada pengingat tanggal kedaluwarsa, jual baju
+                      ada ukuran dan warna, jual elektronik ada catatan garansi,
+                      dan kalau ada pelanggan langganan tersedia catatan kasbon.
                     </p>
                   </div>
                 </>
@@ -394,22 +393,22 @@ export default function LandingPage() {
                 <>
                   <div className="rounded-xl border border-[#ddd3c2] bg-[#faf6ef] p-5">
                     <h3 className="text-base text-[#0a0a0a]">
-                      Tampilan toko online rapi seperti e-commerce
+                      Halaman toko online yang rapi dan mudah dilihat pembeli
                     </h3>
                     <p className="mt-1.5 text-sm leading-relaxed text-[#57534a]">
-                      Toko Anda punya tautan sendiri lengkap dengan banner
-                      sampul, logo profil toko, kategori barang, dan foto setiap
-                      produk beserta sisa stok yang masih ada di rak.
+                      Toko Anda punya tautan sendiri lengkap dengan sampul toko,
+                      logo profil, kelompok barang, serta foto dan sisa stok
+                      setiap barang dagangan.
                     </p>
                   </div>
                   <div className="rounded-xl border border-[#ddd3c2] bg-[#faf6ef] p-5">
                     <h3 className="text-base text-[#0a0a0a]">
-                      Pesanan masuk ke WhatsApp, stok tetap aman
+                      Pesanan masuk ke WhatsApp, stok tetap terjaga
                     </h3>
                     <p className="mt-1.5 text-sm leading-relaxed text-[#57534a]">
-                      Pembeli tinggal memilih barang dan mengirim daftar pesanan
-                      ke WhatsApp Anda. Sisa stok di rak baru berkurang setelah
-                      Anda menekan tombol konfirmasi di kasir.
+                      Pembeli tinggal memilih barang lalu mengirim daftar
+                      belanja ke WhatsApp Anda. Stok di catatan toko baru
+                      berkurang setelah Anda menyetujui pesanannya.
                     </p>
                   </div>
                 </>
@@ -430,14 +429,14 @@ export default function LandingPage() {
           <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
             <div>
               <div className="text-xs tracking-wider text-[#57534a]">
-                ETALASE TOKO ONLINE
+                LIST TOKO
               </div>
               <h2 className="mt-1 text-2xl text-[#0a0a0a] sm:text-3xl">
-                Toko aktif yang siap dipesan
+                Jelajahi toko yang ada di Warungin
               </h2>
               <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[#57534a] sm:text-base">
-                Lihat profil singkat toko sebelum masuk ke halaman katalog
-                barangnya.
+                Pilih toko di bawah ini untuk melihat profil usaha dan daftar
+                barang yang dijual.
               </p>
             </div>
             {!loadingCommunity && !communityError && stores.length > 0 && (
@@ -448,7 +447,7 @@ export default function LandingPage() {
                 <span>
                   {totalStores > 3
                     ? `Lihat semua ${totalStores} toko`
-                    : "Lihat daftar toko"}
+                    : "Lihat semua toko"}
                 </span>
                 <ArrowRight className="h-3.5 w-3.5" />
               </Link>
@@ -467,9 +466,9 @@ export default function LandingPage() {
             </div>
           ) : communityError ? (
             <div className="mt-8 rounded-2xl border border-[#ddd3c2] bg-[#faf6ef] p-6 text-sm">
-              <p className="text-[#0a0a0a]">Etalase toko belum bisa dimuat.</p>
+              <p className="text-[#0a0a0a]">Daftar toko belum bisa dimuat.</p>
               <p className="mt-1 text-xs text-[#57534a]">
-                Periksa koneksi lalu coba lagi.
+                Periksa sambungan internet lalu coba lagi.
               </p>
               <button
                 type="button"
@@ -485,11 +484,11 @@ export default function LandingPage() {
                 <Store className="h-5 w-5" />
               </div>
               <div className="mt-3 text-base text-[#0a0a0a]">
-                Belum ada toko dengan barang yang tersedia
+                Belum ada toko di daftar ini
               </div>
               <p className="mx-auto mt-1.5 max-w-md text-xs leading-relaxed text-[#57534a]">
-                Toko akan tampil setelah katalog diaktifkan dan minimal satu
-                barang online memiliki stok.
+                Toko akan tampil di sini setelah pemilik usaha mendaftar,
+                menyalakan toko online, dan mengisi barang jualannya.
               </p>
               <Link
                 href="/register"
@@ -512,7 +511,7 @@ export default function LandingPage() {
                       {store.banner_url ? (
                         <img
                           src={store.banner_url}
-                          alt={`Spanduk ${store.store_name}`}
+                          alt={`Sampul ${store.store_name}`}
                           className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
                         />
                       ) : (
@@ -553,17 +552,17 @@ export default function LandingPage() {
 
                       <p className="mt-2.5 line-clamp-2 min-h-[2.25rem] text-xs leading-relaxed text-[#57534a]">
                         {store.description ||
-                          `Toko ${store.category.toLowerCase()} dengan stok siap dipesan online.`}
+                          `Menjual kebutuhan ${store.category.toLowerCase()} langsung dari ${store.store_name}.`}
                       </p>
                     </div>
                   </div>
 
                   <div className="mt-4 flex items-center justify-between border-t border-[#eee7da] px-5 py-3.5 text-xs">
                     <span className="text-[#57534a] tabular-nums">
-                      {store.product_count} barang tersedia
+                      {store.product_count} barang
                     </span>
                     <span className="inline-flex items-center gap-1 text-[#1a76d1]">
-                      Lihat toko
+                      Kunjungi toko
                       <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
                     </span>
                   </div>
@@ -580,7 +579,7 @@ export default function LandingPage() {
                     PILIHAN BARANG
                   </div>
                   <h3 className="mt-1 text-xl text-[#0a0a0a] sm:text-2xl">
-                    Barang yang paling banyak dibeli
+                    Barang yang sering dibeli
                   </h3>
                 </div>
                 <span className="text-xs text-[#57534a]">
@@ -665,10 +664,10 @@ export default function LandingPage() {
           <div>
             <div className="max-w-2xl">
               <div className="text-xs tracking-wider text-[#57534a]">
-                CARA MULAI PAKAI
+                CARA MULAI
               </div>
               <h2 className="mt-1 text-2xl text-[#0a0a0a] sm:text-3xl">
-                Tiga langkah sederhana dari daftar sampai siap jualan.
+                Tiga langkah mudah dari daftar sampai siap berjualan.
               </h2>
             </div>
 
@@ -676,18 +675,18 @@ export default function LandingPage() {
               {[
                 {
                   n: "01",
-                  title: "Ceritakan jualan toko Anda",
-                  text: "Pilih atau tulis jenis usaha, pasang logo dan banner toko, lalu jawab pertanyaan singkat agar menu kasir dan stok sesuai kebutuhan.",
+                  title: "Ceritakan usaha toko Anda",
+                  text: "Pilih atau tulis jenis usaha, pasang logo dan sampul toko, lalu jawab pertanyaan singkat agar menu kasir dan catatan barangnya langsung cocok.",
                 },
                 {
                   n: "02",
                   title: "Masukkan foto & harga barang",
-                  text: "Unggah foto barang dagangan, isi harga beli, harga jual, dan sisa stok. Aktifkan katalog online untuk barang yang bisa dipesan.",
+                  text: "Tambahkan foto barang dagangan, isi harga beli, harga jual, dan jumlah stok. Nyalakan toko online untuk barang yang boleh dipesan pembeli.",
                 },
                 {
                   n: "03",
-                  title: "Layani pembeli di kasir & WhatsApp",
-                  text: "Catat pembeli di kasir, cetak atau kirim struk, lalu setujui pesanan online agar stok dan penjualan tercatat.",
+                  title: "Mulai layani pembeli",
+                  text: "Catat pembeli di meja kasir, cetak atau kirim struk, dan terima pesanan WhatsApp dari toko online dengan stok yang selalu terjaga.",
                 },
               ].map((step) => (
                 <div key={step.n} data-motion-item className="rounded-xl border border-[#ddd3c2] bg-[#ffffff] p-5 sm:p-6">
@@ -706,20 +705,20 @@ export default function LandingPage() {
               <div className="flex flex-col items-start justify-between gap-5 sm:gap-6 lg:flex-row lg:items-center">
                 <div className="max-w-xl">
                   <h3 className="text-lg text-[#0a0a0a] sm:text-2xl">
-                    Siap merapikan kasir dan membuka katalog online toko Anda?
+                    Siap merapikan catatan jualan dan buka toko online sendiri?
                   </h3>
                   <div className="mt-3 flex flex-wrap gap-3 text-xs text-[#57534a] sm:gap-4">
                     <span className="inline-flex items-center gap-1.5">
                       <Check className="h-4 w-4 text-[#1a76d1]" />
-                      Bisa untuk segala jenis jualan ritel
+                      Cocok untuk berbagai jenis dagangan
                     </span>
                     <span className="inline-flex items-center gap-1.5">
                       <Check className="h-4 w-4 text-[#1a76d1]" />
-                      Lengkap foto barang, logo, & banner toko
+                      Ada foto barang, logo, dan sampul toko
                     </span>
                     <span className="inline-flex items-center gap-1.5">
                       <Check className="h-4 w-4 text-[#1a76d1]" />
-                      Struk siap cetak & kirim ke WhatsApp
+                      Struk bisa dicetak atau dikirim lewat WhatsApp
                     </span>
                   </div>
                 </div>
@@ -746,13 +745,13 @@ export default function LandingPage() {
         <footer className="mt-10 border-t border-[#ddd3c2] pt-6 text-xs text-[#57534a] sm:mt-12 sm:pt-8">
           <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-4 px-4 sm:flex-row sm:items-center sm:px-6">
             <div>
-              Warungin - Aplikasi kasir, stok barang, dan katalog pesanan
-              WhatsApp untuk toko ritel di Indonesia.
+              Warungin - Catatan kasir, stok barang, dan toko online WhatsApp
+              untuk usaha ritel di Indonesia.
             </div>
             <div className="flex flex-wrap items-center gap-4 sm:gap-5">
               <span>&copy; 2026 Warungin</span>
               <Link href="/toko" className="py-1 hover:text-[#0a0a0a]">
-                Daftar Toko
+                List Toko
               </Link>
               <Link href="/login" className="py-1 hover:text-[#0a0a0a]">
                 Masuk

@@ -345,7 +345,7 @@ export default function PosCashierPage() {
                     <div className="shrink-0">
                       {outOfStock || isExpired ? (
                         <span className="op-tag op-tag-danger">
-                          {outOfStock ? "Habis" : "Expired"}
+                          {outOfStock ? "Habis" : "Kedaluwarsa"}
                         </span>
                       ) : inCartQty === 0 ? (
                         <button
@@ -1095,7 +1095,7 @@ export default function PosCashierPage() {
                   disabled={submitting}
                   className="op-btn op-btn-primary flex-1 sm:flex-none"
                 >
-                  {submitting ? "Menyimpan..." : "Simpan & Buka Struk"}
+                  {submitting ? "Menyimpan..." : "Selesai & Lihat Struk"}
                 </button>
               </div>
             </form>

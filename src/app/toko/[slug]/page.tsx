@@ -246,10 +246,10 @@ export default function PublicStoreCatalogPage() {
             className="inline-flex min-h-[44px] items-center gap-2 text-xs text-[#57534a] hover:text-[#0a0a0a]"
           >
             <ArrowLeft className="h-4 w-4" />
-            <span>Daftar Toko</span>
+            <span>List Toko</span>
           </Link>
           <span className="text-xs text-[#57534a] tabular-nums">
-            {products.length} barang tersedia
+            {products.length} barang
           </span>
         </div>
       </header>

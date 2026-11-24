@@ -142,11 +142,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   const navGroups = [
     {
-      label: "UTAMA",
+      label: "MENU UTAMA",
       items: [
         {
           href: "/dashboard",
-          label: "Ringkasan Harian",
+          label: "Ringkasan Toko",
           icon: LayoutDashboard,
         },
         {
@@ -157,7 +157,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       ],
     },
     {
-      label: "MANAJEMEN",
+      label: "KELOLA TOKO",
       items: [
         {
           href: "/dashboard/inventory",
@@ -171,7 +171,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         },
         {
           href: "/dashboard/transactions",
-          label: "Riwayat Penjualan",
+          label: "Catatan Penjualan",
           icon: FileText,
         },
       ],

@@ -57,9 +57,9 @@ export default function RegisterPage() {
         <div className="op-card p-5 sm:p-6">
           <h1 className="text-xl text-[#22303c]">Buat Akun Pemilik Toko</h1>
           <p className="mt-1.5 text-xs leading-relaxed text-[#5f6f82]">
-            Satu akun digunakan untuk mengelola satu toko. Setelah ini AI akan
-            menanyakan kebutuhan usaha Anda untuk menyiapkan template halaman
-            dashboard yang paling sesuai.
+            Satu akun dipakai untuk mengelola satu toko. Setelah daftar, kami
+            akan menanyakan sedikit tentang usaha Anda agar tampilan kasir dan
+            catatan stoknya langsung cocok.
           </p>
 
           {error && (

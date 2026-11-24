@@ -171,8 +171,8 @@ export default function DashboardOverviewPage() {
     <div>
       <PageHeader
         title={`Halo, ${ownerName || "Pemilik Toko"}`}
-        subtitle={`Ringkasan hasil jualan dan sisa barang di ${store.store_name} hari ini.`}
-        breadcrumb="Ringkasan Harian"
+        subtitle={`Catatan jualan dan sisa stok di ${store.store_name} hari ini.`}
+        breadcrumb="Ringkasan Toko"
         actions={
           <>
             <Link
@@ -248,7 +248,7 @@ export default function DashboardOverviewPage() {
             Jumlah Pembeli
           </div>
           <div className="mt-1.5 text-base text-[#22303c] tabular-nums sm:text-xl">
-            {kpis.transaksiHariIni} nota
+            {kpis.transaksiHariIni} kali beli
           </div>
           <div className="mt-1 text-[11px] text-[#5f6f82]">
             Kasir toko & WhatsApp
@@ -291,7 +291,7 @@ export default function DashboardOverviewPage() {
       <div className="op-card mt-4 flex flex-col justify-between gap-3 bg-[#f8fafc] p-4 sm:flex-row sm:items-center">
         <div>
           <div className="flex flex-wrap items-center gap-2 text-xs text-[#22303c]">
-            <span>{config?.template_label || "Pengaturan Toko Anda"}:</span>
+            <span>{config?.template_label || "Menu di Toko Ini"}:</span>
             {activeFeatures.length === 0 ? (
               <span className="op-tag">Kasir & Stok Standar</span>
             ) : (
@@ -312,7 +312,7 @@ export default function DashboardOverviewPage() {
           href="/dashboard/settings"
           className="op-btn op-btn-sm shrink-0 self-start sm:self-center"
         >
-          Ubah Fitur
+          Atur Menu Toko
         </Link>
       </div>
 
@@ -345,9 +345,9 @@ export default function DashboardOverviewPage() {
           <div className="op-card overflow-hidden">
             <div className="flex items-center justify-between border-b border-[#d8e1ea] px-4 py-3">
               <div>
-                <h2 className="text-sm text-[#22303c]">Penjualan Terbaru</h2>
+                <h2 className="text-sm text-[#22303c]">Catatan Jualan Terbaru</h2>
                 <p className="text-xs text-[#5f6f82]">
-                  Catatan transaksi terakhir dari kasir toko dan WhatsApp
+                  Pembelian terakhir di kasir toko maupun lewat WhatsApp
                 </p>
               </div>
               <Link

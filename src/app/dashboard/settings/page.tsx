@@ -479,7 +479,7 @@ export default function StoreSettingsPage() {
                   href="/onboarding"
                   className="op-btn op-btn-sm shrink-0 self-start sm:self-auto"
                 >
-                  Atur Ulang dengan AI
+                  Atur Ulang Tanya Jawab
                 </Link>
               )}
             </div>

@@ -98,11 +98,11 @@ export default function WhatsAppOrdersPage() {
     <div>
       <PageHeader
         title="Pesanan WhatsApp"
-        subtitle="Daftar pesanan dari katalog online. Stok fisik baru berkurang saat Anda menekan tombol Konfirmasi."
+        subtitle="Pesanan yang masuk dari toko online Anda. Stok barang baru berkurang setelah Anda menekan Setujui."
         breadcrumb="Pesanan WhatsApp"
         actions={
           <span className="op-tag op-tag-warn">
-            Menunggu Konfirmasi: {pendingCount} pesanan
+            Menunggu Disetujui: {pendingCount} pesanan
           </span>
         }
       />
@@ -139,9 +139,9 @@ export default function WhatsAppOrdersPage() {
               }}
               className="op-select"
             >
-              <option value="ALL">Semua Status Pesanan</option>
-              <option value="PENDING_CONFIRMATION">Menunggu Konfirmasi</option>
-              <option value="COMPLETED">Selesai (Stok Terpotong)</option>
+              <option value="ALL">Semua Pesanan</option>
+              <option value="PENDING_CONFIRMATION">Menunggu Disetujui</option>
+              <option value="COMPLETED">Sudah Selesai</option>
               <option value="CANCELLED">Dibatalkan</option>
             </select>
           </div>
@@ -189,7 +189,7 @@ export default function WhatsAppOrdersPage() {
                     <div className="shrink-0">
                       {order.status === "PENDING_CONFIRMATION" && (
                         <span className="op-tag op-tag-warn">
-                          Menunggu Konfirmasi
+                          Menunggu Disetujui
                         </span>
                       )}
                       {order.status === "COMPLETED" && (
@@ -245,7 +245,7 @@ export default function WhatsAppOrdersPage() {
                           className="op-btn op-btn-success w-full"
                         >
                           <Check className="h-4 w-4" />
-                          <span>Konfirmasi</span>
+                          <span>Setujui</span>
                         </button>
                         <button
                           type="button"
@@ -372,7 +372,7 @@ export default function WhatsAppOrdersPage() {
                       <td>
                         {order.status === "PENDING_CONFIRMATION" && (
                           <span className="op-tag op-tag-warn">
-                            Menunggu Konfirmasi
+                            Menunggu Disetujui
                           </span>
                         )}
                         {order.status === "COMPLETED" && (
@@ -401,7 +401,7 @@ export default function WhatsAppOrdersPage() {
                                 className="op-btn op-btn-success op-btn-sm"
                               >
                                 <Check className="h-3.5 w-3.5" />
-                                <span>Konfirmasi</span>
+                                <span>Setujui</span>
                               </button>
                               <button
                                 type="button"
