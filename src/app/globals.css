@@ -38,6 +38,7 @@ html,
 body {
   margin: 0;
   padding: 0;
+  overflow-x: clip;
   background-color: var(--t-bg);
   color: var(--t-fg);
   font-family: "Poppins", sans-serif;
@@ -223,4 +224,135 @@ textarea {
   background: #eff6ff;
   border-color: #bfdbfe;
   color: #1d4ed8;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+section[id] {
+  scroll-margin-top: 5rem;
+}
+
+a,
+button,
+input,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--t-jet);
+  outline-offset: 2px;
+}
+
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Ergonomi sentuh khusus ponsel & tablet (< 1024px); desktop >= 1024px tidak berubah */
+@media (max-width: 1023px) {
+  .op-shell {
+    min-height: 100dvh;
+  }
+
+  .op-card {
+    border-radius: 12px;
+  }
+
+  .op-input,
+  .op-select,
+  .op-textarea {
+    font-size: 16px;
+    min-height: 44px;
+    padding: 10px 12px;
+    border-radius: 8px;
+  }
+
+  .op-textarea {
+    min-height: 84px;
+  }
+
+  .op-btn {
+    min-height: 44px;
+    height: auto;
+    padding: 8px 14px;
+    font-size: 13px;
+    border-radius: 8px;
+  }
+
+  .op-btn-sm {
+    min-height: 38px;
+    height: auto;
+    padding: 6px 12px;
+    font-size: 12px;
+    border-radius: 8px;
+  }
+}
+
+[data-reveal="pending"] {
+  opacity: 0;
+}
+
+[data-reveal="visible"] {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  [data-reveal="pending"],
+  [data-reveal="visible"] {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #printable-receipt,
+  #printable-receipt * {
+    visibility: visible;
+  }
+  #printable-receipt {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    max-width: 340px;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 8px !important;
+    background: #ffffff !important;
+  }
+  .no-print {
+    display: none !important;
+  }
 }

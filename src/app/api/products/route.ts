@@ -7,7 +7,10 @@ export async function GET() {
   try {
     const user = await getSessionUser();
     if (!user || !user.store) {
-      return NextResponse.json({ error: "Tidak terautentikasi." }, { status: 401 });
+      return NextResponse.json(
+        { error: "Tidak terautentikasi." },
+        { status: 401 }
+      );
     }
 
     const products = await prisma.product.findMany({
@@ -25,7 +28,7 @@ export async function GET() {
     });
   } catch {
     return NextResponse.json(
-      { error: "Gagal memuat daftar produk." },
+      { error: "Gagal memuat daftar barang." },
       { status: 500 }
     );
   }
@@ -35,7 +38,10 @@ export async function POST(req: Request) {
   try {
     const user = await getSessionUser();
     if (!user || !user.store) {
-      return NextResponse.json({ error: "Tidak terautentikasi." }, { status: 401 });
+      return NextResponse.json(
+        { error: "Tidak terautentikasi." },
+        { status: 401 }
+      );
     }
 
     const currentCount = await prisma.product.count({
@@ -45,7 +51,7 @@ export async function POST(req: Request) {
     if (currentCount >= MICRO_RET_QUOTAS.MAX_PRODUCTS_PER_STORE) {
       return NextResponse.json(
         {
-          error: `Batas maksimal produk (${MICRO_RET_QUOTAS.MAX_PRODUCTS_PER_STORE} SKU) untuk toko skala mikro telah tercapai. Hapus produk lama terlebih dahulu.`,
+          error: `Batas maksimal barang (${MICRO_RET_QUOTAS.MAX_PRODUCTS_PER_STORE} item) untuk satu toko telah tercapai. Hapus barang lama yang sudah tidak dijual terlebih dahulu.`,
         },
         { status: 400 }
       );
@@ -55,8 +61,15 @@ export async function POST(req: Request) {
     const name = String(body.name || "").trim();
     const sku =
       String(body.sku || "").trim() ||
-      `SKU-${String(currentCount + 1).padStart(3, "0")}`;
-    const unit = String(body.unit || "pcs").trim();
+      `BRG-${String(currentCount + 1).padStart(3, "0")}`;
+    const product_category = body.product_category
+      ? String(body.product_category).trim()
+      : null;
+    const image_url = body.image_url ? String(body.image_url) : null;
+    const unit =
+      String(body.unit || "").trim() ||
+      user.store.modules_config?.default_unit ||
+      "pcs";
     const cost_price = Math.max(0, Number(body.cost_price || 0));
     const sell_price = Math.max(0, Number(body.sell_price || 0));
     const stock_qty = Math.max(0, Number(body.stock_qty || 0));
@@ -77,7 +90,7 @@ export async function POST(req: Request) {
 
     if (!name || sell_price <= 0) {
       return NextResponse.json(
-        { error: "Nama produk dan harga jual wajib diisi dengan benar." },
+        { error: "Nama barang dan harga jual wajib diisi dengan benar." },
         { status: 400 }
       );
     }
@@ -87,6 +100,8 @@ export async function POST(req: Request) {
         store_id: user.store.id,
         sku,
         name,
+        product_category,
+        image_url,
         unit,
         cost_price,
         sell_price,
@@ -102,7 +117,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ product });
   } catch {
     return NextResponse.json(
-      { error: "Gagal menambahkan produk baru." },
+      { error: "Gagal menambahkan barang baru." },
       { status: 500 }
     );
   }

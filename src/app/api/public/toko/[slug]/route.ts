@@ -3,6 +3,8 @@ import { prisma } from "@/lib/db";
 import { generateWhatsAppOrderLink } from "@/lib/format";
 import { MICRO_RET_QUOTAS } from "@/lib/quotas";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(
   _req: Request,
   context: { params: Promise<{ slug: string }> }
@@ -15,7 +17,7 @@ export async function GET(
         modules_config: true,
         products: {
           where: { is_online: true },
-          orderBy: { name: "asc" },
+          orderBy: { created_at: "desc" },
         },
       },
     });
@@ -34,6 +36,9 @@ export async function GET(
         slug: store.slug,
         category: store.category,
         description: store.description,
+        address: store.address,
+        logo_url: store.logo_url,
+        banner_url: store.banner_url,
         whatsapp_number: store.whatsapp_number,
         account_holder_name: store.account_holder_name,
         modules_config: store.modules_config,
@@ -87,7 +92,20 @@ export async function POST(
     const body = await req.json();
     const customerName = String(body.customer_name || "").trim();
     const customerWa = String(body.customer_wa || "").trim();
-    const customerNote = String(body.customer_note || "").trim();
+    const deliveryMethod = String(body.delivery_method || "").trim();
+    const rawCustomerNote = String(body.customer_note || "").trim();
+
+    const combinedNoteParts: string[] = [];
+    if (deliveryMethod === "DIANTAR") {
+      combinedNoteParts.push("[Minta Diantar]");
+    } else if (deliveryMethod === "AMBIL_SENDIRI") {
+      combinedNoteParts.push("[Ambil di Toko]");
+    }
+    if (rawCustomerNote) {
+      combinedNoteParts.push(rawCustomerNote);
+    }
+    const customerNote = combinedNoteParts.join(" ");
+
     const rawItems: { product_id: string; qty: number }[] = Array.isArray(
       body.items
     )
@@ -96,7 +114,7 @@ export async function POST(
 
     if (!customerName || !customerWa) {
       return NextResponse.json(
-        { error: "Nama lengkap dan nomor WhatsApp Anda wajib diisi." },
+        { error: "Nama Anda dan nomor WhatsApp wajib diisi." },
         { status: 400 }
       );
     }
@@ -118,10 +136,12 @@ export async function POST(
     }
 
     let totalAmount = 0;
+    let discountTotal = 0;
     const orderItemsData: {
       product_id: string;
       product_name: string;
       unit_price: number;
+      normal_price: number;
       qty: number;
       subtotal: number;
     }[] = [];
@@ -148,7 +168,8 @@ export async function POST(
         );
       }
 
-      let unitPrice = product.sell_price;
+      const normalPrice = product.sell_price;
+      let unitPrice = normalPrice;
       if (
         store.modules_config?.enable_wholesale_tier &&
         product.wholesale_price &&
@@ -159,7 +180,9 @@ export async function POST(
       }
 
       const subtotal = unitPrice * qty;
+      const itemDiscount = Math.max(0, (normalPrice - unitPrice) * qty);
       totalAmount += subtotal;
+      discountTotal += itemDiscount;
 
       const labelName =
         store.modules_config?.enable_variant_matrix && product.variant_label
@@ -170,6 +193,7 @@ export async function POST(
         product_id: product.id,
         product_name: labelName,
         unit_price: unitPrice,
+        normal_price: normalPrice,
         qty,
         subtotal,
       });
@@ -179,8 +203,6 @@ export async function POST(
     const randPart = String(Math.floor(100 + Math.random() * 900));
     const invoiceCode = `WA-${datePart}-${randPart}`;
 
-    // PENTING: Stok fisik BELUM dipotong di sini.
-    // Stok baru dipotong saat pemilik/kasir menekan "Konfirmasi Pesanan" di dashboard ERP.
     const transaction = await prisma.transaction.create({
       data: {
         store_id: store.id,
@@ -192,6 +214,7 @@ export async function POST(
         customer_wa: customerWa,
         customer_note: customerNote || null,
         is_debt_paid: true,
+        discount_total: discountTotal,
         total_amount: totalAmount,
         items: {
           create: orderItemsData,
@@ -201,7 +224,7 @@ export async function POST(
     });
 
     const waUrl = generateWhatsAppOrderLink({
-      storePhone: store.whatsapp_number || "6281234567801",
+      storePhone: store.whatsapp_number || "",
       storeName: store.store_name,
       accountHolder: store.account_holder_name || "Pemilik Toko",
       invoiceCode,

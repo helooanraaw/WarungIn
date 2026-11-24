@@ -2,49 +2,36 @@
 
 import React, { useEffect, useState } from "react";
 import { PageHeader, Pager } from "@/components/erp/AppShell";
+import ReceiptModal, {
+  type ReceiptStoreInfo,
+  type ReceiptTransactionData,
+} from "@/components/erp/ReceiptModal";
 import { fmtDateTime, fmtRp } from "@/lib/format";
 import { Search, Check } from "lucide-react";
-
-interface TransactionRow {
-  id: string;
-  invoice_code: string;
-  channel: string;
-  status: string;
-  payment_method: string;
-  customer_name: string | null;
-  customer_wa: string | null;
-  customer_note: string | null;
-  shift_name: string | null;
-  is_debt_paid: boolean;
-  total_amount: number;
-  created_at: string;
-  confirmed_at: string | null;
-  items: {
-    id: string;
-    product_name: string;
-    unit_price: number;
-    qty: number;
-    subtotal: number;
-  }[];
-}
 
 interface ModulesConfig {
   enable_shift_log: boolean;
   enable_debt_book: boolean;
+  receipt_footer: string;
 }
 
 export default function TransactionsHistoryPage() {
-  const [transactions, setTransactions] = useState<TransactionRow[]>([]);
+  const [transactions, setTransactions] = useState<ReceiptTransactionData[]>(
+    []
+  );
+  const [storeInfo, setStoreInfo] = useState<ReceiptStoreInfo | null>(null);
   const [config, setConfig] = useState<ModulesConfig | null>(null);
   const [loading, setLoading] = useState(true);
 
   const [search, setSearch] = useState("");
   const [channelFilter, setChannelFilter] = useState("ALL");
   const [paymentFilter, setPaymentFilter] = useState("ALL");
+  const [shiftFilter, setShiftFilter] = useState("ALL");
   const [page, setPage] = useState(1);
   const pageSize = 10;
 
-  const [selectedTrx, setSelectedTrx] = useState<TransactionRow | null>(null);
+  const [selectedTrx, setSelectedTrx] =
+    useState<ReceiptTransactionData | null>(null);
 
   function loadTransactions() {
     setLoading(true);
@@ -53,6 +40,16 @@ export default function TransactionsHistoryPage() {
       .then((data) => {
         if (data.transactions) setTransactions(data.transactions);
         if (data.config) setConfig(data.config);
+        if (data.store) {
+          setStoreInfo({
+            store_name: data.store.store_name,
+            category: data.store.category,
+            address: data.store.address,
+            logo_url: data.store.logo_url,
+            whatsapp_number: data.store.whatsapp_number,
+            receipt_footer: data.config?.receipt_footer,
+          });
+        }
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -94,6 +91,14 @@ export default function TransactionsHistoryPage() {
       return false;
     }
 
+    if (
+      config?.enable_shift_log &&
+      shiftFilter !== "ALL" &&
+      (t.shift_name || "") !== shiftFilter
+    ) {
+      return false;
+    }
+
     return true;
   });
 
@@ -104,28 +109,32 @@ export default function TransactionsHistoryPage() {
     <div>
       <PageHeader
         title="Riwayat Transaksi"
-        subtitle="Rekap seluruh transaksi dari kasir toko fisik maupun pesanan WhatsApp."
+        subtitle="Catatan seluruh penjualan dari meja kasir maupun pesanan WhatsApp."
         breadcrumb="Riwayat Transaksi"
       />
 
       {/* RINGKASAN METRIK TRANSAKSI */}
-      <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div className="op-card p-4">
+      <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
+        <div className="op-card col-span-2 p-3.5 sm:col-span-1 sm:p-4">
           <div className="text-xs text-[#5f6f82]">Total Penjualan Selesai</div>
           <div className="mt-1 text-lg text-[#22303c] tabular-nums">
             {fmtRp(totalRevenue)}
           </div>
         </div>
-        <div className="op-card p-4">
-          <div className="text-xs text-[#5f6f82]">Jumlah Nota Selesai</div>
-          <div className="mt-1 text-lg text-[#22303c] tabular-nums">
+        <div className="op-card p-3.5 sm:p-4">
+          <div className="text-[11px] text-[#5f6f82] sm:text-xs">
+            Nota Selesai
+          </div>
+          <div className="mt-1 text-base text-[#22303c] tabular-nums sm:text-lg">
             {completedList.length} transaksi
           </div>
         </div>
-        <div className="op-card p-4">
-          <div className="text-xs text-[#5f6f82]">Kasbon Belum Lunas</div>
-          <div className="mt-1 text-lg text-[#c0392b] tabular-nums">
-            {fmtRp(unpaidDebtTotal)} ({unpaidDebts.length} nota)
+        <div className="op-card p-3.5 sm:p-4">
+          <div className="text-[11px] text-[#5f6f82] sm:text-xs">
+            Kasbon Belum Lunas
+          </div>
+          <div className="mt-1 truncate text-base text-[#c0392b] tabular-nums sm:text-lg">
+            {fmtRp(unpaidDebtTotal)} ({unpaidDebts.length})
           </div>
         </div>
       </div>
@@ -133,8 +142,12 @@ export default function TransactionsHistoryPage() {
       {/* BAR PENCARIAN & FILTER */}
       <div className="op-card mb-4 p-3.5">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-12">
-          <div className="relative sm:col-span-6">
-            <Search className="absolute top-2.5 left-3 h-4 w-4 text-[#5f6f82]" />
+          <div
+            className={`relative ${
+              config?.enable_shift_log ? "sm:col-span-4" : "sm:col-span-6"
+            }`}
+          >
+            <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-[#5f6f82]" />
             <input
               type="text"
               value={search}
@@ -142,12 +155,16 @@ export default function TransactionsHistoryPage() {
                 setSearch(e.target.value);
                 setPage(1);
               }}
-              placeholder="Cari kode nota atau nama pelanggan..."
+              placeholder="Cari nomor nota atau nama pelanggan..."
               className="op-input pl-9"
             />
           </div>
 
-          <div className="sm:col-span-3">
+          <div
+            className={
+              config?.enable_shift_log ? "sm:col-span-3" : "sm:col-span-3"
+            }
+          >
             <select
               value={channelFilter}
               onChange={(e) => {
@@ -162,7 +179,11 @@ export default function TransactionsHistoryPage() {
             </select>
           </div>
 
-          <div className="sm:col-span-3">
+          <div
+            className={
+              config?.enable_shift_log ? "sm:col-span-3" : "sm:col-span-3"
+            }
+          >
             <select
               value={paymentFilter}
               onChange={(e) => {
@@ -179,12 +200,125 @@ export default function TransactionsHistoryPage() {
               <option value="UNPAID_DEBT">Kasbon Belum Lunas</option>
             </select>
           </div>
+
+          {config?.enable_shift_log && (
+            <div className="sm:col-span-2">
+              <select
+                value={shiftFilter}
+                onChange={(e) => {
+                  setShiftFilter(e.target.value);
+                  setPage(1);
+                }}
+                className="op-select"
+              >
+                <option value="ALL">Semua Shift</option>
+                <option value="Pagi">Shift Pagi</option>
+                <option value="Sore">Shift Sore</option>
+                <option value="Malam">Shift Malam</option>
+              </select>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* INDEX TABLE RIWAYAT TRANSAKSI */}
+      {/* DAFTAR RIWAYAT TRANSAKSI */}
       <div className="op-card overflow-hidden">
-        <div className="overflow-x-auto">
+        {/* KARTU RIWAYAT MOBILE & TABLET (< 1024px) */}
+        <div className="divide-y divide-[#edf2f7] lg:hidden">
+          {loading ? (
+            <div className="px-4 py-8 text-center text-xs text-[#5f6f82]">
+              Memuat riwayat transaksi...
+            </div>
+          ) : paginated.length === 0 ? (
+            <div className="px-4 py-8 text-center text-xs text-[#5f6f82]">
+              Tidak ada transaksi yang sesuai filter pencarian.
+            </div>
+          ) : (
+            paginated.map((trx) => (
+              <div key={trx.id} className="space-y-3 p-4">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="truncate text-xs text-[#22303c]">
+                      {trx.invoice_code}
+                    </div>
+                    <div className="mt-0.5 text-[11px] text-[#5f6f82]">
+                      {fmtDateTime(trx.created_at)}
+                    </div>
+                  </div>
+                  <div className="shrink-0 text-right text-sm text-[#22303c] tabular-nums">
+                    {fmtRp(trx.total_amount)}
+                  </div>
+                </div>
+
+                <div className="text-xs text-[#22303c]">
+                  <span>{trx.customer_name || "Pembeli Umum"}</span>
+                  {config?.enable_shift_log && trx.shift_name && (
+                    <span className="ml-1.5 text-[11px] text-[#5f6f82]">
+                      · Shift {trx.shift_name}
+                    </span>
+                  )}
+                  {trx.customer_note && (
+                    <div className="mt-0.5 text-[11px] text-[#5f6f82]">
+                      {trx.customer_note}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {trx.channel === "WHATSAPP_ONLINE" ? (
+                    <span className="op-tag op-tag-info">WhatsApp</span>
+                  ) : (
+                    <span className="op-tag">Kasir Toko</span>
+                  )}
+                  <span className="op-tag">{trx.payment_method}</span>
+                  {trx.payment_method === "KASBON" && (
+                    <span
+                      className={`op-tag ${
+                        trx.is_debt_paid ? "op-tag-success" : "op-tag-danger"
+                      }`}
+                    >
+                      {trx.is_debt_paid ? "Lunas" : "Belum Lunas"}
+                    </span>
+                  )}
+                  {trx.status === "COMPLETED" && (
+                    <span className="op-tag op-tag-success">Selesai</span>
+                  )}
+                  {trx.status === "PENDING_CONFIRMATION" && (
+                    <span className="op-tag op-tag-warn">
+                      Menunggu Konfirmasi
+                    </span>
+                  )}
+                  {trx.status === "CANCELLED" && (
+                    <span className="op-tag op-tag-danger">Dibatalkan</span>
+                  )}
+                </div>
+
+                <div className="flex gap-2 pt-0.5">
+                  {trx.payment_method === "KASBON" && !trx.is_debt_paid && (
+                    <button
+                      type="button"
+                      onClick={() => markDebtPaid(trx.id)}
+                      className="op-btn op-btn-success op-btn-sm flex-1"
+                    >
+                      <Check className="h-3.5 w-3.5" />
+                      <span>Tandai Lunas</span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTrx(trx)}
+                    className="op-btn op-btn-sm flex-1"
+                  >
+                    Lihat Struk
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* INDEX TABLE DESKTOP (>= 1024px) */}
+        <div className="hidden overflow-x-auto lg:block">
           <table className="op-table">
             <thead>
               <tr>
@@ -253,7 +387,9 @@ export default function TransactionsHistoryPage() {
                       {trx.payment_method === "KASBON" && (
                         <span
                           className={`ml-1.5 op-tag ${
-                            trx.is_debt_paid ? "op-tag-success" : "op-tag-danger"
+                            trx.is_debt_paid
+                              ? "op-tag-success"
+                              : "op-tag-danger"
                           }`}
                         >
                           {trx.is_debt_paid ? "Lunas" : "Belum Lunas"}
@@ -318,88 +454,14 @@ export default function TransactionsHistoryPage() {
         />
       </div>
 
-      {/* MODAL DETAIL STRUK */}
+      {/* MODAL DETAIL STRUK LENGKAP */}
       {selectedTrx && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="op-card w-full max-w-sm p-6">
-            <div className="flex items-center justify-between border-b border-[#d8e1ea] pb-3">
-              <h3 className="text-sm text-[#22303c]">
-                Rincian Nota {selectedTrx.invoice_code}
-              </h3>
-              <button
-                type="button"
-                onClick={() => setSelectedTrx(null)}
-                className="text-xs text-[#5f6f82] hover:text-[#22303c]"
-              >
-                Tutup
-              </button>
-            </div>
-
-            <div className="mt-3 space-y-1 text-xs text-[#5f6f82]">
-              <div className="flex justify-between">
-                <span>Waktu Transaksi:</span>
-                <span className="text-[#22303c]">
-                  {fmtDateTime(selectedTrx.created_at)}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span>Pelanggan:</span>
-                <span className="text-[#22303c]">
-                  {selectedTrx.customer_name || "Pembeli Umum"}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span>Jalur:</span>
-                <span className="text-[#22303c]">
-                  {selectedTrx.channel === "WHATSAPP_ONLINE"
-                    ? "Pesanan WhatsApp"
-                    : "Kasir Toko"}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span>Pembayaran:</span>
-                <span className="text-[#22303c]">
-                  {selectedTrx.payment_method}
-                </span>
-              </div>
-            </div>
-
-            <div className="my-3 border-y border-dashed border-[#d8e1ea] py-3 text-xs">
-              {selectedTrx.items.map((item) => (
-                <div key={item.id} className="flex justify-between py-1">
-                  <span>
-                    {item.qty}x {item.product_name}
-                  </span>
-                  <span className="tabular-nums">{fmtRp(item.subtotal)}</span>
-                </div>
-              ))}
-            </div>
-
-            <div className="flex items-center justify-between text-sm text-[#22303c]">
-              <span>Total</span>
-              <span className="tabular-nums">
-                {fmtRp(selectedTrx.total_amount)}
-              </span>
-            </div>
-
-            <div className="mt-5 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => window.print()}
-                className="op-btn"
-              >
-                Cetak Nota
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedTrx(null)}
-                className="op-btn op-btn-primary"
-              >
-                Selesai
-              </button>
-            </div>
-          </div>
-        </div>
+        <ReceiptModal
+          transaction={selectedTrx}
+          store={storeInfo}
+          title={`Rincian Struk Nota (${selectedTrx.invoice_code})`}
+          onClose={() => setSelectedTrx(null)}
+        />
       )}
     </div>
   );

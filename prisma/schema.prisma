@@ -9,6 +9,7 @@ datasource db {
 
 model User {
   id            String   @id @default(cuid())
+  name          String   @default("Pemilik Toko")
   email         String   @unique
   password_hash String
   role          String   @default("OWNER") // OWNER | CASHIER
@@ -22,8 +23,11 @@ model Store {
   user                User           @relation(fields: [user_id], references: [id], onDelete: Cascade)
   store_name          String
   slug                String         @unique
-  category            String         // Toko Kelontong / Warung Sembako, Butik & Pakaian, Toko Bahan Kue & Roti, Apotek Mini & Kesehatan, Kios Perlengkapan Harian
+  category            String
   description         String
+  address             String?
+  logo_url            String?
+  banner_url          String?
   is_online_enabled   Boolean        @default(true)
   whatsapp_number     String?        // Format: 628xxxxxxxxxx
   account_holder_name String?
@@ -38,33 +42,42 @@ model ModulesConfig {
   id                      String   @id @default(cuid())
   store_id                String   @unique
   store                   Store    @relation(fields: [store_id], references: [id], onDelete: Cascade)
+  dashboard_template      String   @default("RITEL_UMUM")
+  template_label          String   @default("Tampilan Kasir & Stok Toko Harian")
+  custom_attribute_label  String   @default("Ukuran / Pilihan")
+  default_unit            String   @default("pcs")
   enable_expiry_tracking  Boolean  @default(false)
   enable_variant_matrix   Boolean  @default(false)
   enable_wholesale_tier   Boolean  @default(false)
+  enable_manual_discount  Boolean  @default(false)
   enable_shift_log        Boolean  @default(false)
   enable_debt_book        Boolean  @default(false)
+  enable_delivery_note    Boolean  @default(true)
   low_stock_threshold     Int      @default(10)
+  receipt_footer          String   @default("Terima kasih sudah berbelanja di toko kami.")
   ai_summary_reason       String   @default("")
   raw_onboarding_json     String   @default("{}")
 }
 
 model Product {
-  id               String      @id @default(cuid())
-  store_id         String
-  store            Store       @relation(fields: [store_id], references: [id], onDelete: Cascade)
-  sku              String
-  name             String
-  unit             String      @default("pcs")
-  cost_price       Int         @default(0)
-  sell_price       Int         @default(0)
-  wholesale_price  Int?
+  id                String      @id @default(cuid())
+  store_id          String
+  store             Store       @relation(fields: [store_id], references: [id], onDelete: Cascade)
+  sku               String
+  name              String
+  product_category  String?
+  image_url         String?
+  unit              String      @default("pcs")
+  cost_price        Int         @default(0)
+  sell_price        Int         @default(0)
+  wholesale_price   Int?
   wholesale_min_qty Int?
-  stock_qty        Int         @default(0)
-  is_online        Boolean     @default(true)
-  variant_label    String?
-  expiry_date      String?     // Format YYYY-MM-DD jika enable_expiry_tracking aktif
-  created_at       DateTime    @default(now())
-  order_items      OrderItem[]
+  stock_qty         Int         @default(0)
+  is_online         Boolean     @default(true)
+  variant_label     String?
+  expiry_date       String?     // Format YYYY-MM-DD jika enable_expiry_tracking aktif
+  created_at        DateTime    @default(now())
+  order_items       OrderItem[]
 
   @@index([store_id, is_online])
   @@index([store_id, stock_qty])
@@ -83,7 +96,11 @@ model Transaction {
   customer_note   String?
   shift_name      String?     // Pagi | Sore | Malam
   is_debt_paid    Boolean     @default(true)
+  discount_total  Int         @default(0)
+  manual_discount Int         @default(0)
   total_amount    Int         @default(0)
+  cash_received   Int?
+  change_amount   Int?
   created_at      DateTime    @default(now())
   confirmed_at    DateTime?
   items           OrderItem[]
@@ -100,6 +117,7 @@ model OrderItem {
   product        Product     @relation(fields: [product_id], references: [id], onDelete: Cascade)
   product_name   String
   unit_price     Int
+  normal_price   Int         @default(0)
   qty            Int
   subtotal       Int
 }

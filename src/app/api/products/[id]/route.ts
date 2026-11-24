@@ -9,7 +9,10 @@ export async function PATCH(
   try {
     const user = await getSessionUser();
     if (!user || !user.store) {
-      return NextResponse.json({ error: "Tidak terautentikasi." }, { status: 401 });
+      return NextResponse.json(
+        { error: "Tidak terautentikasi." },
+        { status: 401 }
+      );
     }
 
     const { id } = await context.params;
@@ -19,16 +22,18 @@ export async function PATCH(
 
     if (!existing) {
       return NextResponse.json(
-        { error: "Produk tidak ditemukan." },
+        { error: "Barang tidak ditemukan." },
         { status: 404 }
       );
     }
 
     const body = await req.json();
 
-    // Penyesuaian stok cepat (+ / - / set)
     if (body.stock_delta !== undefined) {
-      const nextStock = Math.max(0, existing.stock_qty + Number(body.stock_delta));
+      const nextStock = Math.max(
+        0,
+        existing.stock_qty + Number(body.stock_delta)
+      );
       const updated = await prisma.product.update({
         where: { id: existing.id },
         data: { stock_qty: nextStock },
@@ -40,8 +45,22 @@ export async function PATCH(
       where: { id: existing.id },
       data: {
         sku: body.sku !== undefined ? String(body.sku).trim() : existing.sku,
-        name: body.name !== undefined ? String(body.name).trim() : existing.name,
-        unit: body.unit !== undefined ? String(body.unit).trim() : existing.unit,
+        name:
+          body.name !== undefined ? String(body.name).trim() : existing.name,
+        product_category:
+          body.product_category !== undefined
+            ? body.product_category
+              ? String(body.product_category).trim()
+              : null
+            : existing.product_category,
+        image_url:
+          body.image_url !== undefined
+            ? body.image_url
+              ? String(body.image_url)
+              : null
+            : existing.image_url,
+        unit:
+          body.unit !== undefined ? String(body.unit).trim() : existing.unit,
         cost_price:
           body.cost_price !== undefined
             ? Math.max(0, Number(body.cost_price))
@@ -88,7 +107,7 @@ export async function PATCH(
     return NextResponse.json({ product: updated });
   } catch {
     return NextResponse.json(
-      { error: "Gagal memperbarui produk." },
+      { error: "Gagal memperbarui data barang." },
       { status: 500 }
     );
   }
@@ -101,7 +120,10 @@ export async function DELETE(
   try {
     const user = await getSessionUser();
     if (!user || !user.store) {
-      return NextResponse.json({ error: "Tidak terautentikasi." }, { status: 401 });
+      return NextResponse.json(
+        { error: "Tidak terautentikasi." },
+        { status: 401 }
+      );
     }
 
     const { id } = await context.params;
@@ -111,7 +133,7 @@ export async function DELETE(
 
     if (!existing) {
       return NextResponse.json(
-        { error: "Produk tidak ditemukan." },
+        { error: "Barang tidak ditemukan." },
         { status: 404 }
       );
     }
@@ -120,7 +142,7 @@ export async function DELETE(
     return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json(
-      { error: "Gagal menghapus produk." },
+      { error: "Gagal menghapus barang." },
       { status: 500 }
     );
   }

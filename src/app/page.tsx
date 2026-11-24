@@ -2,22 +2,36 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Store, Check } from "lucide-react";
+import {
+  ArrowRight,
+  Store,
+  Check,
+  Image as ImageIcon,
+  MapPin,
+  Menu,
+  X,
+} from "lucide-react";
 import { fmtRp } from "@/lib/format";
+import BrandLogo from "@/components/BrandLogo";
+import RevealOnScroll from "@/components/RevealOnScroll";
 
 interface CommunityProduct {
   id: string;
   sku: string;
   name: string;
+  product_category: string | null;
+  image_url: string | null;
   unit: string;
   sell_price: number;
   stock_qty: number;
   variant_label: string | null;
+  total_sold: number;
   store: {
     id: string;
     store_name: string;
     slug: string;
     category: string;
+    logo_url: string | null;
   };
 }
 
@@ -27,58 +41,84 @@ interface CommunityStore {
   slug: string;
   category: string;
   description: string;
+  address: string | null;
+  logo_url: string | null;
+  banner_url: string | null;
+  product_count: number;
+  total_sold: number;
 }
 
 export default function LandingPage() {
   const [products, setProducts] = useState<CommunityProduct[]>([]);
   const [stores, setStores] = useState<CommunityStore[]>([]);
-  const [selectedStoreSlug, setSelectedStoreSlug] = useState<string>("ALL");
-  const [previewTab, setPreviewTab] = useState<"ringkasan" | "pos" | "wa">(
-    "ringkasan"
+  const [totalStores, setTotalStores] = useState(0);
+  const [activeMockup, setActiveMockup] = useState<"kasir" | "katalog">(
+    "kasir"
   );
   const [loadingCommunity, setLoadingCommunity] = useState(true);
+  const [communityError, setCommunityError] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   useEffect(() => {
-    fetch("/api/public/community")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.products) setProducts(data.products);
-        if (data.stores) setStores(data.stores);
-      })
-      .catch(() => {})
-      .finally(() => setLoadingCommunity(false));
-  }, []);
+    let active = true;
+    setLoadingCommunity(true);
+    setCommunityError(false);
 
-  const filteredProducts =
-    selectedStoreSlug === "ALL"
-      ? products
-      : products.filter((p) => p.store.slug === selectedStoreSlug);
+    fetch("/api/public/community?stores_limit=3")
+      .then((res) => {
+        if (!res.ok) throw new Error("Gagal memuat etalase toko.");
+        return res.json();
+      })
+      .then((data) => {
+        if (!active) return;
+        const fetchedStores = Array.isArray(data.stores) ? data.stores : [];
+        setProducts(Array.isArray(data.products) ? data.products : []);
+        setStores(fetchedStores);
+        setTotalStores(
+          typeof data.total_stores === "number"
+            ? data.total_stores
+            : fetchedStores.length
+        );
+      })
+      .catch(() => {
+        if (active) setCommunityError(true);
+      })
+      .finally(() => {
+        if (active) setLoadingCommunity(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [retryCount]);
 
   return (
-    <div className="min-h-screen bg-[#fffdf9] text-[#0a0a0a]">
+    <div className="bg-[#fffdf9] text-[#0a0a0a]">
       {/* NAVBAR */}
       <header className="sticky top-0 z-30 border-b border-[#ddd3c2] bg-[#fffdf9]/95 backdrop-blur-sm">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
-          <Link href="/" className="flex items-center gap-2.5 text-lg text-[#0a0a0a]">
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#1a76d1] text-sm text-white">
-              W
-            </span>
+        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:px-6 md:h-16">
+          <Link
+            href="/"
+            className="flex items-center gap-2 text-base text-[#0a0a0a] sm:gap-2.5 sm:text-lg"
+          >
+            <BrandLogo size={28} variant="color" />
             <span>Warungin</span>
           </Link>
 
           <nav className="hidden items-center gap-7 text-sm text-[#57534a] md:flex">
-            <a href="#fitur" className="hover:text-[#0a0a0a]">
-              Fitur
-            </a>
-            <a href="#cara-kerja" className="hover:text-[#0a0a0a]">
-              Cara Kerja
+            <a href="#preview" className="hover:text-[#0a0a0a]">
+              Tampilan Sistem
             </a>
             <a href="#etalase" className="hover:text-[#0a0a0a]">
               Etalase Toko
             </a>
+            <a href="#cara-kerja" className="hover:text-[#0a0a0a]">
+              Cara Pakai
+            </a>
           </nav>
 
-          <div className="flex items-center gap-2.5">
+          <div className="hidden items-center gap-2.5 md:flex">
             <Link
               href="/login"
               className="rounded-full border border-[#ddd3c2] bg-transparent px-4 py-2 text-sm text-[#0a0a0a] transition-colors hover:bg-[#faf6ef]"
@@ -89,564 +129,641 @@ export default function LandingPage() {
               href="/register"
               className="rounded-full bg-[#1a76d1] px-4 py-2 text-sm text-white transition-colors hover:bg-[#1565c0]"
             >
-              Daftar Toko
+              Buat Toko
             </Link>
           </div>
+
+          <div className="flex items-center gap-2 md:hidden">
+            <Link
+              href="/login"
+              className="inline-flex min-h-[40px] items-center rounded-full border border-[#ddd3c2] bg-white px-3.5 text-xs text-[#0a0a0a]"
+            >
+              Masuk
+            </Link>
+            <button
+              type="button"
+              onClick={() => setMobileNavOpen((prev) => !prev)}
+              aria-expanded={mobileNavOpen}
+              aria-controls="landing-mobile-menu"
+              aria-label={mobileNavOpen ? "Tutup menu" : "Buka menu"}
+              className="inline-flex min-h-[40px] items-center gap-1.5 rounded-full border border-[#ddd3c2] bg-[#faf6ef] px-3.5 text-xs text-[#0a0a0a]"
+            >
+              {mobileNavOpen ? (
+                <X className="h-4 w-4" />
+              ) : (
+                <Menu className="h-4 w-4" />
+              )}
+              <span>Menu</span>
+            </button>
+          </div>
         </div>
-      </header>
 
-      {/* HERO SECTION - TANPA BADGE DI ATAS JUDUL, MURNI JUDUL + DESKRIPSI + TOMBOL CAPSULE */}
-      <section className="border-b border-[#ddd3c2] py-14 sm:py-20">
-        <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-10 px-4 sm:px-6 lg:grid-cols-12">
-          <div className="lg:col-span-6">
-            <h1 className="text-3xl leading-snug tracking-tight text-[#0a0a0a] sm:text-4xl lg:text-[40px] lg:leading-[1.22]">
-              Kelola kasir, stok barang, dan pesanan WhatsApp dari satu tempat.
-            </h1>
-            <p className="mt-4 text-base leading-relaxed text-[#57534a] sm:text-[17px]">
-              Warungin membantu pemilik warung dan toko ritel kecil mencatat
-              penjualan harian, memantau sisa barang di rak, serta membuat
-              halaman katalog online yang langsung terhubung ke WhatsApp.
-            </p>
-
-            <div className="mt-7 flex flex-wrap items-center gap-3">
-              <Link
-                href="/register"
-                className="inline-flex items-center gap-2 rounded-full bg-[#1a76d1] px-6 py-3 text-sm text-white transition-colors hover:bg-[#1565c0]"
+        {mobileNavOpen && (
+          <div
+            id="landing-mobile-menu"
+            className="border-t border-[#ddd3c2] bg-[#fffdf9] px-4 py-4 shadow-sm md:hidden"
+          >
+            <nav className="flex flex-col gap-1 text-sm text-[#0a0a0a]">
+              <a
+                href="#preview"
+                onClick={() => setMobileNavOpen(false)}
+                className="flex min-h-[44px] items-center rounded-xl px-3 hover:bg-[#faf6ef]"
               >
-                <span>Buka Toko Sekarang</span>
-                <ArrowRight className="h-4 w-4" />
+                Tampilan Sistem
+              </a>
+              <a
+                href="#etalase"
+                onClick={() => setMobileNavOpen(false)}
+                className="flex min-h-[44px] items-center rounded-xl px-3 hover:bg-[#faf6ef]"
+              >
+                Etalase Toko
+              </a>
+              <Link
+                href="/toko"
+                onClick={() => setMobileNavOpen(false)}
+                className="flex min-h-[44px] items-center rounded-xl px-3 hover:bg-[#faf6ef]"
+              >
+                Daftar Semua Toko
               </Link>
+              <a
+                href="#cara-kerja"
+                onClick={() => setMobileNavOpen(false)}
+                className="flex min-h-[44px] items-center rounded-xl px-3 hover:bg-[#faf6ef]"
+              >
+                Cara Pakai
+              </a>
+            </nav>
+            <div className="mt-3 grid grid-cols-2 gap-2 border-t border-[#eee7da] pt-3">
               <Link
                 href="/login"
-                className="inline-flex items-center gap-2 rounded-full border border-[#ddd3c2] bg-[#faf6ef] px-6 py-3 text-sm text-[#0a0a0a] transition-colors hover:bg-[#f3ede2]"
+                onClick={() => setMobileNavOpen(false)}
+                className="inline-flex min-h-[44px] items-center justify-center rounded-full border border-[#ddd3c2] bg-white px-4 text-xs text-[#0a0a0a]"
               >
-                <span>Coba Akun Contoh</span>
+                Masuk Akun
+              </Link>
+              <Link
+                href="/register"
+                onClick={() => setMobileNavOpen(false)}
+                className="inline-flex min-h-[44px] items-center justify-center rounded-full bg-[#1a76d1] px-4 text-xs text-white"
+              >
+                Buat Toko
               </Link>
             </div>
+          </div>
+        )}
+      </header>
 
-            <div className="mt-8 grid grid-cols-3 gap-4 border-t border-[#ddd3c2] pt-6 text-xs text-[#57534a] sm:text-sm">
+      {/* SECTION 1 (FULL SCREEN): HERO + MOCKUP UTAMA */}
+      <section className="border-b border-[#ddd3c2] py-10 lg:flex lg:min-h-[calc(100vh-4rem)] lg:flex-col lg:justify-center lg:py-14">
+        <RevealOnScroll
+          stagger
+          className="mx-auto w-full max-w-6xl px-4 sm:px-6"
+        >
+        <div className="grid grid-cols-1 items-center gap-8 lg:grid-cols-12 lg:gap-10">
+          <div className="lg:col-span-6">
+            <h1 data-motion-item className="text-[28px] leading-snug tracking-tight text-[#0a0a0a] sm:text-4xl lg:text-[42px] lg:leading-[1.22]">
+              Catat jualan kasir, sisa stok, dan toko online WhatsApp dari satu
+              halaman.
+            </h1>
+            <p data-motion-item className="mt-3.5 text-sm leading-relaxed text-[#57534a] sm:mt-4 sm:text-[17px]">
+              Cocok untuk warung sembako, toko kue, toko baju, konter aksesoris,
+              hingga petshop. Cukup ceritakan apa yang Anda jual saat mendaftar,
+              lalu tampilan kasir dan catatan barang langsung menyesuaikan
+              kebutuhan toko Anda.
+            </p>
+
+            <div data-motion-item className="mt-6 flex flex-col gap-2.5 sm:mt-7 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
+              <Link
+                href="/register"
+                className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-full bg-[#1a76d1] px-6 py-3 text-sm text-white transition-colors hover:bg-[#1565c0] sm:w-auto"
+              >
+                <span>Buat Toko Sekarang</span>
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+              <a
+                href="#etalase"
+                className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-full border border-[#ddd3c2] bg-[#faf6ef] px-6 py-3 text-sm text-[#0a0a0a] transition-colors hover:bg-[#f3ede2] sm:w-auto"
+              >
+                <span>Lihat Etalase Toko</span>
+              </a>
+            </div>
+
+            <div data-motion-item className="mt-7 grid grid-cols-1 gap-3 border-t border-[#ddd3c2] pt-5 text-xs text-[#57534a] sm:mt-8 sm:grid-cols-3 sm:gap-4 sm:pt-6 sm:text-sm">
               <div>
-                <div className="text-[#0a0a0a]">Tampilan Sesuai Usaha</div>
+                <div className="text-[#0a0a0a]">Bebas Jenis Jualan</div>
                 <div className="mt-0.5 text-xs text-[#57534a]">
-                  Sembako, butik, bahan kue, apotek
+                  Menu mengikuti barang yang Anda jual
                 </div>
               </div>
               <div>
-                <div className="text-[#0a0a0a]">Stok Terjaga</div>
+                <div className="text-[#0a0a0a]">Toko Online Sendiri</div>
                 <div className="mt-0.5 text-xs text-[#57534a]">
-                  Stok potong saat pesanan dikonfirmasi
+                  Lengkap foto barang, logo, & banner
                 </div>
               </div>
               <div>
-                <div className="text-[#0a0a0a]">Katalog WhatsApp</div>
+                <div className="text-[#0a0a0a]">Stok Tidak Bentrok</div>
                 <div className="mt-0.5 text-xs text-[#57534a]">
-                  Pembeli pesan tanpa instal aplikasi
+                  Kasir toko & pesanan WA satu pintu
                 </div>
               </div>
             </div>
           </div>
 
-          {/* PREVIEW LAYAR KERJA BACKOFFICE */}
-          <div className="lg:col-span-6">
-            <div className="overflow-hidden rounded-xl border border-[#ddd3c2] bg-[#ffffff] shadow-sm">
-              <div className="flex items-center justify-between border-b border-[#d8e1ea] bg-[#1b2733] px-4 py-3 text-xs text-white">
-                <div className="flex items-center gap-2">
-                  <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#26a69a]" />
-                  <span>Toko Sembako Berkah Jaya - Ruang Kerja Kasir</span>
+          {/* SLOT FOTO MOCKUP UTAMA (/public/images/mockups/hero-dashboard.png) */}
+          <div data-motion-item className="lg:col-span-6">
+            <div className="overflow-hidden rounded-2xl border border-[#ddd3c2] bg-[#faf6ef] p-2 shadow-sm sm:p-2.5">
+              <div className="mb-2 flex items-center justify-between px-2 py-1 text-[11px] text-[#57534a] sm:text-xs">
+                <div className="flex items-center gap-1.5">
+                  <span className="h-2.5 w-2.5 rounded-full bg-[#ddd3c2]" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-[#ddd3c2]" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-[#ddd3c2]" />
                 </div>
-                <span className="text-[#d9e2ea]">/toko/berkah-jaya</span>
+                <span className="truncate pl-2">Halaman Dashboard & Ringkasan Toko</span>
               </div>
-
-              <div className="flex flex-wrap gap-2 border-b border-[#d8e1ea] bg-[#f4f7fa] px-4 py-2.5">
-                <button
-                  type="button"
-                  onClick={() => setPreviewTab("ringkasan")}
-                  className={`rounded-full px-3.5 py-1 text-xs transition-colors ${
-                    previewTab === "ringkasan"
-                      ? "bg-[#1a76d1] text-white"
-                      : "border border-[#d8e1ea] bg-white text-[#22303c]"
-                  }`}
-                >
-                  Ringkasan Harian
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPreviewTab("pos")}
-                  className={`rounded-full px-3.5 py-1 text-xs transition-colors ${
-                    previewTab === "pos"
-                      ? "bg-[#1a76d1] text-white"
-                      : "border border-[#d8e1ea] bg-white text-[#22303c]"
-                  }`}
-                >
-                  Tabel Produk & Stok
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPreviewTab("wa")}
-                  className={`rounded-full px-3.5 py-1 text-xs transition-colors ${
-                    previewTab === "wa"
-                      ? "bg-[#1a76d1] text-white"
-                      : "border border-[#d8e1ea] bg-white text-[#22303c]"
-                  }`}
-                >
-                  Pesanan WhatsApp (2)
-                </button>
-              </div>
-
-              <div className="p-4 sm:p-5">
-                {previewTab === "ringkasan" && (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                      <div className="rounded-[5px] border border-[#d8e1ea] bg-[#f8fafc] p-3">
-                        <div className="text-[11px] text-[#5f6f82]">
-                          Omzet Hari Ini
-                        </div>
-                        <div className="mt-1 text-sm text-[#22303c] tabular-nums">
-                          Rp 205.500
-                        </div>
-                      </div>
-                      <div className="rounded-[5px] border border-[#d8e1ea] bg-[#f8fafc] p-3">
-                        <div className="text-[11px] text-[#5f6f82]">
-                          Transaksi Selesai
-                        </div>
-                        <div className="mt-1 text-sm text-[#22303c] tabular-nums">
-                          2 nota
-                        </div>
-                      </div>
-                      <div className="rounded-[5px] border border-[#d8e1ea] bg-[#f8fafc] p-3">
-                        <div className="text-[11px] text-[#5f6f82]">
-                          Stok Menipis
-                        </div>
-                        <div className="mt-1 text-sm text-[#b56c09] tabular-nums">
-                          3 produk
-                        </div>
-                      </div>
-                      <div className="rounded-[5px] border border-[#d8e1ea] bg-[#f8fafc] p-3">
-                        <div className="text-[11px] text-[#5f6f82]">
-                          Pesanan WA
-                        </div>
-                        <div className="mt-1 text-sm text-[#1976d2] tabular-nums">
-                          2 menunggu
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="rounded-[5px] border border-[#d8e1ea]">
-                      <div className="border-b border-[#d8e1ea] bg-[#f8fafc] px-3 py-2 text-xs text-[#5f6f82]">
-                        Transaksi Terakhir Hari Ini
-                      </div>
-                      <div className="divide-y divide-[#edf2f7] text-xs">
-                        <div className="flex items-center justify-between px-3 py-2.5">
-                          <div>
-                            <div className="text-[#22303c]">INV-BJ-261027-001</div>
-                            <div className="text-[11px] text-[#5f6f82]">
-                              Kasir Toko - Tunai
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-[#22303c] tabular-nums">
-                              Rp 142.000
-                            </div>
-                            <span className="text-[11px] text-[#167a6f]">
-                              Selesai
-                            </span>
-                          </div>
-                        </div>
-                        <div className="flex items-center justify-between px-3 py-2.5">
-                          <div>
-                            <div className="text-[#22303c]">WA-BJ-261027-003</div>
-                            <div className="text-[11px] text-[#5f6f82]">
-                              Ibu Siti Aminah - Pesanan WhatsApp
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-[#22303c] tabular-nums">
-                              Rp 173.000
-                            </div>
-                            <span className="text-[11px] text-[#b56c09]">
-                              Menunggu Konfirmasi
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {previewTab === "pos" && (
-                  <div className="overflow-x-auto rounded-[5px] border border-[#d8e1ea]">
-                    <table className="w-full border-collapse text-left text-xs">
-                      <thead>
-                        <tr className="border-b border-[#d8e1ea] bg-[#f8fafc] text-[#5f6f82]">
-                          <th className="px-3 py-2">Produk</th>
-                          <th className="px-3 py-2 text-right">Harga Ecer</th>
-                          <th className="px-3 py-2 text-right">Stok</th>
-                          <th className="px-3 py-2 text-center">Online</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-[#edf2f7]">
-                        <tr>
-                          <td className="px-3 py-2 text-[#22303c]">
-                            Beras Ramos Premium 5 Kg
-                          </td>
-                          <td className="px-3 py-2 text-right tabular-nums">
-                            Rp 72.000
-                          </td>
-                          <td className="px-3 py-2 text-right tabular-nums">
-                            28 karung
-                          </td>
-                          <td className="px-3 py-2 text-center text-[#167a6f]">
-                            Tayang
-                          </td>
-                        </tr>
-                        <tr>
-                          <td className="px-3 py-2 text-[#22303c]">
-                            Minyak Goreng Sawit 2 Liter
-                          </td>
-                          <td className="px-3 py-2 text-right tabular-nums">
-                            Rp 35.000
-                          </td>
-                          <td className="px-3 py-2 text-right tabular-nums">
-                            42 pouch
-                          </td>
-                          <td className="px-3 py-2 text-center text-[#167a6f]">
-                            Tayang
-                          </td>
-                        </tr>
-                        <tr>
-                          <td className="px-3 py-2 text-[#22303c]">
-                            Gas LPG 3 Kg (Ambil di Warung)
-                          </td>
-                          <td className="px-3 py-2 text-right tabular-nums">
-                            Rp 21.000
-                          </td>
-                          <td className="px-3 py-2 text-right tabular-nums">
-                            12 tabung
-                          </td>
-                          <td className="px-3 py-2 text-center text-[#5f6f82]">
-                            Nonaktif
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-
-                {previewTab === "wa" && (
-                  <div className="space-y-3 text-xs">
-                    <div className="rounded-[5px] border border-[#d8e1ea] bg-[#f8fafc] p-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[#22303c]">
-                          WA-BJ-261027-003 - Ibu Siti Aminah (081288990011)
-                        </span>
-                        <span className="rounded bg-[#fef8ec] px-2 py-0.5 text-[11px] text-[#b56c09]">
-                          Menunggu Konfirmasi
-                        </span>
-                      </div>
-                      <div className="mt-1.5 text-[#5f6f82]">
-                        2x Beras Ramos 5 Kg, 2x Kopi Bubuk Hitam 165g - Total Rp
-                        173.000
-                      </div>
-                      <div className="mt-2.5 flex items-center justify-between border-t border-[#d8e1ea] pt-2 text-[11px] text-[#5f6f82]">
-                        <span>Stok fisik belum berkurang sebelum dikonfirmasi</span>
-                        <Link
-                          href="/login"
-                          className="rounded-full bg-[#1a76d1] px-3 py-1 text-white"
-                        >
-                          Buka di Dashboard
-                        </Link>
-                      </div>
-                    </div>
-                  </div>
-                )}
+              <div className="overflow-hidden rounded-xl border border-[#ddd3c2] bg-white">
+                <img
+                  src="/images/mockups/hero-dashboard.png"
+                  alt="Mockup Dashboard Warungin"
+                  className="aspect-[16/10] w-full object-cover"
+                />
               </div>
             </div>
           </div>
         </div>
+        </RevealOnScroll>
       </section>
 
-      {/* ETALASE PRODUK TOKO */}
-      <section id="etalase" className="border-b border-[#ddd3c2] py-14 sm:py-16">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-            <div>
-              <h2 className="text-2xl text-[#0a0a0a] sm:text-3xl">
-                Lihat contoh katalog online dari toko pengguna Warungin
+      {/* SECTION 2 (FULL SCREEN): TAMPILAN SISTEM & MOCKUP FITUR */}
+      <section
+        id="preview"
+        className="border-b border-[#ddd3c2] py-12 lg:flex lg:min-h-screen lg:flex-col lg:justify-center lg:py-16"
+      >
+        <RevealOnScroll className="mx-auto w-full max-w-6xl px-4 sm:px-6">
+        <div>
+          <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end sm:gap-5">
+            <div className="max-w-2xl">
+              <div className="text-xs tracking-wider text-[#57534a]">
+                TAMPILAN SISTEM
+              </div>
+              <h2 className="mt-1 text-2xl text-[#0a0a0a] sm:text-3xl">
+                Satu aplikasi untuk meja kasir sekaligus halaman belanja pembeli.
               </h2>
-              <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[#57534a] sm:text-base">
-                Klik salah satu barang di bawah ini untuk membuka halaman penuh
-                toko penjualnya dan mencoba simulasi belanja via WhatsApp.
+              <p className="mt-2 text-sm leading-relaxed text-[#57534a] sm:text-base">
+                Tidak perlu bingung dengan tombol yang rumit. Semua menu dibuat
+                bersih dan hanya memunculkan kolom yang memang dibutuhkan usaha
+                Anda.
               </p>
             </div>
 
-            {/* Filter Toko menggunakan tombol Capsule */}
-            <div className="flex flex-wrap gap-2">
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
               <button
                 type="button"
-                onClick={() => setSelectedStoreSlug("ALL")}
-                className={`rounded-full px-4 py-1.5 text-xs transition-colors sm:text-sm ${
-                  selectedStoreSlug === "ALL"
+                onClick={() => setActiveMockup("kasir")}
+                className={`min-h-[44px] rounded-full px-3.5 py-2 text-center text-xs transition-colors sm:min-h-0 sm:px-5 sm:text-sm ${
+                  activeMockup === "kasir"
                     ? "bg-[#1a76d1] text-white"
                     : "border border-[#ddd3c2] bg-[#faf6ef] text-[#0a0a0a] hover:bg-[#f3ede2]"
                 }`}
               >
-                Semua Toko
+                1. Kasir & Stok
               </button>
-              {stores.map((s) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  onClick={() => setSelectedStoreSlug(s.slug)}
-                  className={`rounded-full px-4 py-1.5 text-xs transition-colors sm:text-sm ${
-                    selectedStoreSlug === s.slug
-                      ? "bg-[#1a76d1] text-white"
-                      : "border border-[#ddd3c2] bg-[#faf6ef] text-[#0a0a0a] hover:bg-[#f3ede2]"
-                  }`}
-                >
-                  {s.store_name}
-                </button>
-              ))}
+              <button
+                type="button"
+                onClick={() => setActiveMockup("katalog")}
+                className={`min-h-[44px] rounded-full px-3.5 py-2 text-center text-xs transition-colors sm:min-h-0 sm:px-5 sm:text-sm ${
+                  activeMockup === "katalog"
+                    ? "bg-[#1a76d1] text-white"
+                    : "border border-[#ddd3c2] bg-[#faf6ef] text-[#0a0a0a] hover:bg-[#f3ede2]"
+                }`}
+              >
+                2. Toko Online
+              </button>
             </div>
           </div>
 
+          <div className="mt-8 grid grid-cols-1 items-center gap-8 lg:grid-cols-12">
+            {/* BINGKAI FOTO MOCKUP FITUR */}
+            <div className="lg:col-span-7">
+              <div className="overflow-hidden rounded-2xl border border-[#ddd3c2] bg-[#faf6ef] p-2.5">
+                <div className="overflow-hidden rounded-xl border border-[#ddd3c2] bg-white">
+                  {activeMockup === "kasir" ? (
+                    <img
+                      src="/images/mockups/mockup-kasir-pos.png"
+                      alt="Mockup Kasir dan Stok Warungin"
+                      className="aspect-[16/10] w-full object-cover"
+                    />
+                  ) : (
+                    <img
+                      src="/images/mockups/mockup-katalog-wa.png"
+                      alt="Mockup Katalog Online E-Commerce Warungin"
+                      className="aspect-[16/10] w-full object-cover"
+                    />
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* PENJELASAN BAHASA SEDERHANA */}
+            <div className="space-y-4 lg:col-span-5">
+              {activeMockup === "kasir" ? (
+                <>
+                  <div className="rounded-xl border border-[#ddd3c2] bg-[#faf6ef] p-5">
+                    <h3 className="text-base text-[#0a0a0a]">
+                      Hitung belanjaan & kembalian tanpa salah hitung
+                    </h3>
+                    <p className="mt-1.5 text-sm leading-relaxed text-[#57534a]">
+                      Klik barang yang dibeli pelanggan, atur jumlahnya, lalu
+                      sistem otomatis menghitung total, harga beli banyak
+                      (grosir), uang kembalian, hingga mencetak atau mengirim
+                      struk ke WhatsApp.
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-[#ddd3c2] bg-[#faf6ef] p-5">
+                    <h3 className="text-base text-[#0a0a0a]">
+                      Kolom stok menyesuaikan barang dagangan Anda
+                    </h3>
+                    <p className="mt-1.5 text-sm leading-relaxed text-[#57534a]">
+                      Jual makanan ada pengingat tanggal kadaluarsa, jual baju
+                      ada ukuran & warna, jual elektronik ada masa garansi, dan
+                      kalau ada langganan tetangga tersedia catatan bon/kasbon.
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="rounded-xl border border-[#ddd3c2] bg-[#faf6ef] p-5">
+                    <h3 className="text-base text-[#0a0a0a]">
+                      Tampilan toko online rapi seperti e-commerce
+                    </h3>
+                    <p className="mt-1.5 text-sm leading-relaxed text-[#57534a]">
+                      Toko Anda punya tautan sendiri lengkap dengan banner
+                      sampul, logo profil toko, kategori barang, dan foto setiap
+                      produk beserta sisa stok yang masih ada di rak.
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-[#ddd3c2] bg-[#faf6ef] p-5">
+                    <h3 className="text-base text-[#0a0a0a]">
+                      Pesanan masuk ke WhatsApp, stok tetap aman
+                    </h3>
+                    <p className="mt-1.5 text-sm leading-relaxed text-[#57534a]">
+                      Pembeli tinggal memilih barang dan mengirim daftar pesanan
+                      ke WhatsApp Anda. Sisa stok di rak baru berkurang setelah
+                      Anda menekan tombol konfirmasi di kasir.
+                    </p>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+        </RevealOnScroll>
+      </section>
+
+      {/* SECTION 3 (FULL SCREEN): ETALASE E-COMMERCE TOKO & PRODUK */}
+      <section
+        id="etalase"
+        className="border-b border-[#ddd3c2] py-12 lg:flex lg:min-h-screen lg:flex-col lg:justify-center lg:py-16"
+      >
+        <RevealOnScroll className="mx-auto w-full max-w-6xl px-4 sm:px-6">
+        <div>
+          <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+            <div>
+              <div className="text-xs tracking-wider text-[#57534a]">
+                ETALASE TOKO ONLINE
+              </div>
+              <h2 className="mt-1 text-2xl text-[#0a0a0a] sm:text-3xl">
+                Toko aktif yang siap dipesan
+              </h2>
+              <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[#57534a] sm:text-base">
+                Lihat profil singkat toko sebelum masuk ke halaman katalog
+                barangnya.
+              </p>
+            </div>
+            {!loadingCommunity && !communityError && stores.length > 0 && (
+              <Link
+                href="/toko"
+                className="inline-flex min-h-[44px] w-full shrink-0 items-center justify-center gap-2 rounded-full border border-[#ddd3c2] bg-white px-4 py-2 text-xs text-[#0a0a0a] transition-colors hover:border-[#1a76d1] hover:text-[#1a76d1] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1a76d1] sm:min-h-0 sm:w-auto sm:self-auto"
+              >
+                <span>
+                  {totalStores > 3
+                    ? `Lihat semua ${totalStores} toko`
+                    : "Lihat daftar toko"}
+                </span>
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            )}
+          </div>
+
           {loadingCommunity ? (
-            <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {[1, 2, 3, 4].map((n) => (
+            <div className="mt-8 grid grid-cols-1 gap-5 md:grid-cols-3">
+              {[1, 2, 3].map((n) => (
                 <div
                   key={n}
-                  className="h-44 rounded-xl border border-[#ddd3c2] bg-[#faf6ef] p-5"
+                  aria-hidden="true"
+                  className="h-64 animate-pulse rounded-2xl border border-[#ddd3c2] bg-[#faf6ef]"
                 />
               ))}
             </div>
+          ) : communityError ? (
+            <div className="mt-8 rounded-2xl border border-[#ddd3c2] bg-[#faf6ef] p-6 text-sm">
+              <p className="text-[#0a0a0a]">Etalase toko belum bisa dimuat.</p>
+              <p className="mt-1 text-xs text-[#57534a]">
+                Periksa koneksi lalu coba lagi.
+              </p>
+              <button
+                type="button"
+                onClick={() => setRetryCount((count) => count + 1)}
+                className="mt-4 rounded-full bg-[#1a76d1] px-4 py-2 text-xs text-white transition-colors hover:bg-[#1565c0] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1a76d1]"
+              >
+                Coba lagi
+              </button>
+            </div>
+          ) : stores.length === 0 ? (
+            <div className="mt-8 rounded-2xl border border-[#ddd3c2] bg-[#faf6ef] p-10 text-center">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-white text-[#1a76d1]">
+                <Store className="h-5 w-5" />
+              </div>
+              <div className="mt-3 text-base text-[#0a0a0a]">
+                Belum ada toko dengan barang yang tersedia
+              </div>
+              <p className="mx-auto mt-1.5 max-w-md text-xs leading-relaxed text-[#57534a]">
+                Toko akan tampil setelah katalog diaktifkan dan minimal satu
+                barang online memiliki stok.
+              </p>
+              <Link
+                href="/register"
+                className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#1a76d1] px-5 py-2.5 text-xs text-white"
+              >
+                <span>Buka Toko Pertama Anda</span>
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            </div>
           ) : (
-            <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {filteredProducts.map((item) => (
+            <div className="mt-8 grid grid-cols-1 gap-5 md:grid-cols-3">
+              {stores.slice(0, 3).map((store) => (
                 <Link
-                  key={item.id}
-                  href={`/toko/${item.store.slug}`}
-                  className="group flex flex-col justify-between rounded-xl border border-[#ddd3c2] bg-[#faf6ef] p-5 transition-colors hover:border-[#1a76d1] hover:bg-[#ffffff]"
+                  key={store.id}
+                  href={`/toko/${store.slug}`}
+                  className="group flex flex-col justify-between overflow-hidden rounded-2xl border border-[#ddd3c2] bg-white transition-colors hover:border-[#1a76d1] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1a76d1]"
                 >
                   <div>
-                    <div className="flex items-center justify-between gap-2 text-xs text-[#57534a]">
-                      <span className="inline-flex items-center gap-1.5">
-                        <Store className="h-3.5 w-3.5 text-[#1a76d1]" />
-                        <span>{item.store.store_name}</span>
-                      </span>
-                    </div>
-                    <div className="mt-1 text-[11px] text-[#57534a]">
-                      {item.store.category}
+                    <div className="h-24 w-full overflow-hidden border-b border-[#eee7da] bg-[#faf6ef]">
+                      {store.banner_url ? (
+                        <img
+                          src={store.banner_url}
+                          alt={`Spanduk ${store.store_name}`}
+                          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                        />
+                      ) : (
+                        <div className="h-full w-full bg-gradient-to-br from-[#faf6ef] to-[#edf4fc]" />
+                      )}
                     </div>
 
-                    <h3 className="mt-3 text-base leading-snug text-[#0a0a0a]">
-                      {item.name}
-                    </h3>
-                    {item.variant_label && (
-                      <div className="mt-1 text-xs text-[#57534a]">
-                        Varian: {item.variant_label}
+                    <div className="px-5">
+                      <div className="-mt-6 flex items-end justify-between gap-3">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border-2 border-white bg-[#faf6ef] ring-1 ring-[#ddd3c2]">
+                          {store.logo_url ? (
+                            <img
+                              src={store.logo_url}
+                              alt={store.store_name}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <span className="flex h-full w-full items-center justify-center bg-[#1a76d1] text-base text-white">
+                              {store.store_name.charAt(0).toUpperCase()}
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[11px] text-[#57534a]">
+                          {store.category}
+                        </span>
                       </div>
-                    )}
+
+                      <h3 className="mt-3 truncate text-base text-[#0a0a0a] transition-colors group-hover:text-[#1a76d1]">
+                        {store.store_name}
+                      </h3>
+
+                      {store.address && (
+                        <div className="mt-1 flex items-center gap-1 text-xs text-[#57534a]">
+                          <MapPin className="h-3 w-3 shrink-0 text-[#1a76d1]" />
+                          <span className="truncate">{store.address}</span>
+                        </div>
+                      )}
+
+                      <p className="mt-2.5 line-clamp-2 min-h-[2.25rem] text-xs leading-relaxed text-[#57534a]">
+                        {store.description ||
+                          `Toko ${store.category.toLowerCase()} dengan stok siap dipesan online.`}
+                      </p>
+                    </div>
                   </div>
 
-                  <div className="mt-5 border-t border-[#ddd3c2] pt-3">
-                    <div className="flex items-baseline justify-between">
-                      <span className="text-base text-[#0a0a0a] tabular-nums">
-                        {fmtRp(item.sell_price)}
-                      </span>
-                      <span className="text-xs text-[#57534a] tabular-nums">
-                        Stok: {item.stock_qty} {item.unit}
-                      </span>
-                    </div>
-
-                    <div className="mt-3 flex items-center justify-between rounded-full border border-[#ddd3c2] bg-[#fffdf9] px-3.5 py-1.5 text-xs text-[#1a76d1] group-hover:border-[#1a76d1] group-hover:bg-[#1a76d1] group-hover:text-white">
-                      <span>Buka Katalog Toko</span>
-                      <ArrowRight className="h-3.5 w-3.5" />
-                    </div>
+                  <div className="mt-4 flex items-center justify-between border-t border-[#eee7da] px-5 py-3.5 text-xs">
+                    <span className="text-[#57534a] tabular-nums">
+                      {store.product_count} barang tersedia
+                    </span>
+                    <span className="inline-flex items-center gap-1 text-[#1a76d1]">
+                      Lihat toko
+                      <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                    </span>
                   </div>
                 </Link>
               ))}
             </div>
           )}
+
+          {!loadingCommunity && !communityError && products.length > 0 && (
+            <div className="mt-12 border-t border-[#ddd3c2] pt-8">
+              <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
+                <div>
+                  <div className="text-xs tracking-wider text-[#57534a]">
+                    PILIHAN BARANG
+                  </div>
+                  <h3 className="mt-1 text-xl text-[#0a0a0a] sm:text-2xl">
+                    Barang yang paling banyak dibeli
+                  </h3>
+                </div>
+                <span className="text-xs text-[#57534a]">
+                  Pilih barang untuk memesan langsung di tokonya
+                </span>
+              </div>
+
+              <div className="mt-5 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+                {products.slice(0, 4).map((item) => (
+                  <Link
+                    key={item.id}
+                    href={`/toko/${item.store.slug}`}
+                    className="group flex h-full flex-col overflow-hidden rounded-2xl border border-[#ddd3c2] bg-white transition-colors hover:border-[#1a76d1] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1a76d1]"
+                  >
+                    <div className="relative aspect-square w-full overflow-hidden border-b border-[#eee7da] bg-[#faf6ef]">
+                      {item.image_url ? (
+                        <img
+                          src={item.image_url}
+                          alt={item.name}
+                          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full flex-col items-center justify-center gap-1.5 text-[#57534a]">
+                          <ImageIcon className="h-7 w-7 opacity-40" />
+                          <span className="text-[11px] opacity-60">
+                            {item.product_category || item.store.category}
+                          </span>
+                        </div>
+                      )}
+                      {item.total_sold > 0 && (
+                        <span className="absolute right-2 top-2 rounded-full border border-[#ddd3c2]/80 bg-white/95 px-2 py-0.5 text-[10px] text-[#0a0a0a] tabular-nums sm:right-2.5 sm:top-2.5 sm:px-2.5 sm:text-[11px]">
+                          Terjual {item.total_sold}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex flex-1 flex-col justify-between p-3 sm:p-4">
+                      <div>
+                        <h4 className="line-clamp-2 text-xs leading-snug text-[#0a0a0a] sm:text-base">
+                          {item.name}
+                        </h4>
+                        <div className="mt-1.5 text-sm text-[#1a76d1] tabular-nums sm:text-base">
+                          {fmtRp(item.sell_price)}
+                        </div>
+                        <div className="mt-0.5 text-[11px] text-[#57534a] tabular-nums sm:text-xs">
+                          Stok {item.stock_qty} {item.unit}
+                        </div>
+                      </div>
+                      <div className="mt-3 flex items-center gap-1.5 border-t border-[#eee7da] pt-2.5 text-[11px] text-[#57534a] sm:mt-3.5 sm:gap-2 sm:text-xs">
+                        {item.store.logo_url ? (
+                          <img
+                            src={item.store.logo_url}
+                            alt=""
+                            className="h-5 w-5 shrink-0 rounded-full object-cover"
+                          />
+                        ) : (
+                          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#1a76d1] text-[10px] text-white">
+                            {item.store.store_name.charAt(0).toUpperCase()}
+                          </span>
+                        )}
+                        <span className="truncate">{item.store.store_name}</span>
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+
         </div>
+        </RevealOnScroll>
       </section>
 
-      {/* FITUR UTAMA */}
-      <section id="fitur" className="border-b border-[#ddd3c2] py-14 sm:py-16">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <div className="max-w-2xl">
-            <h2 className="text-2xl text-[#0a0a0a] sm:text-3xl">
-              Dirancang khusus untuk kebutuhan toko kecil sehari-hari
-            </h2>
-            <p className="mt-2 text-sm leading-relaxed text-[#57534a] sm:text-base">
-              Tidak perlu mengatur banyak menu yang membingungkan. Anda cukup
-              memakai fitur yang memang dibutuhkan oleh jenis toko Anda.
-            </p>
-          </div>
-
-          <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2">
-            <div className="rounded-xl border border-[#ddd3c2] bg-[#faf6ef] p-6">
-              <h3 className="text-lg text-[#0a0a0a]">
-                Menu menyesuaikan jenis usaha
-              </h3>
-              <p className="mt-2 text-sm leading-relaxed text-[#57534a]">
-                Saat pertama mendaftar, sistem menanyakan jenis usaha Anda. Toko
-                kue dan sembako mendapatkan kolom tanggal kedaluwarsa, sedangkan
-                butik pakaian mendapatkan kolom ukuran dan warna.
-              </p>
-            </div>
-
-            <div className="rounded-xl border border-[#ddd3c2] bg-[#faf6ef] p-6">
-              <h3 className="text-lg text-[#0a0a0a]">
-                Kasir cepat dan mudah dipakai
-              </h3>
-              <p className="mt-2 text-sm leading-relaxed text-[#57534a]">
-                Cari barang, masukkan ke keranjang, hitung uang kembalian, dan
-                catat pembayaran tunai, QRIS, transfer, atau kasbon pelanggan
-                dengan cepat.
-              </p>
-            </div>
-
-            <div className="rounded-xl border border-[#ddd3c2] bg-[#faf6ef] p-6">
-              <h3 className="text-lg text-[#0a0a0a]">
-                Katalog online terhubung ke WhatsApp
-              </h3>
-              <p className="mt-2 text-sm leading-relaxed text-[#57534a]">
-                Pilih barang mana saja yang ingin ditampilkan di internet.
-                Pembeli bisa memilih barang dari katalog toko Anda dan mengirim
-                format pesanan langsung ke WhatsApp.
-              </p>
-            </div>
-
-            <div className="rounded-xl border border-[#ddd3c2] bg-[#faf6ef] p-6">
-              <h3 className="text-lg text-[#0a0a0a]">
-                Stok aman dari pesanan ganda
-              </h3>
-              <p className="mt-2 text-sm leading-relaxed text-[#57534a]">
-                Pesanan dari WhatsApp masuk ke daftar tunggu terlebih dahulu.
-                Stok barang di rak baru dipotong setelah Anda memastikan uang
-                pembayaran sudah masuk.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* CARA KERJA */}
+      {/* SECTION 4 (FULL SCREEN): CARA PAKAI & MULAI SEKARANG */}
       <section
         id="cara-kerja"
-        className="border-b border-[#ddd3c2] py-14 sm:py-16"
+        className="py-12 lg:flex lg:min-h-screen lg:flex-col lg:justify-between lg:py-16"
       >
-        <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <h2 className="text-2xl text-[#0a0a0a] sm:text-3xl">
-            Mulai gunakan dalam 3 langkah sederhana
-          </h2>
-
-          <div className="mt-8 grid grid-cols-1 gap-5 md:grid-cols-3">
-            <div className="rounded-xl border border-[#ddd3c2] bg-[#ffffff] p-6">
-              <div className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#faf6ef] text-sm text-[#1a76d1]">
-                01
-              </div>
-              <h3 className="mt-4 text-lg text-[#0a0a0a]">Isi profil toko</h3>
-              <p className="mt-2 text-sm leading-relaxed text-[#57534a]">
-                Masukkan nama toko, jenis usaha, nomor WhatsApp, dan jawab 3
-                pertanyaan singkat tentang cara kerja toko Anda.
-              </p>
-            </div>
-
-            <div className="rounded-xl border border-[#ddd3c2] bg-[#ffffff] p-6">
-              <div className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#faf6ef] text-sm text-[#1a76d1]">
-                02
-              </div>
-              <h3 className="mt-4 text-lg text-[#0a0a0a]">
-                Masukkan daftar barang
-              </h3>
-              <p className="mt-2 text-sm leading-relaxed text-[#57534a]">
-                Tambahkan barang dagangan, harga jual, jumlah stok fisik, dan
-                pilih barang yang ingin ditampilkan di katalog online.
-              </p>
-            </div>
-
-            <div className="rounded-xl border border-[#ddd3c2] bg-[#ffffff] p-6">
-              <div className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#faf6ef] text-sm text-[#1a76d1]">
-                03
-              </div>
-              <h3 className="mt-4 text-lg text-[#0a0a0a]">
-                Layani pembeli di kasir dan WhatsApp
-              </h3>
-              <p className="mt-2 text-sm leading-relaxed text-[#57534a]">
-                Catat pembeli yang datang langsung ke toko dan konfirmasi
-                pesanan yang masuk dari WhatsApp tanpa takut salah hitung stok.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* CTA BAWAH */}
-      <section className="py-14 sm:py-16">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <div className="rounded-2xl border border-[#ddd3c2] bg-[#faf6ef] p-8 sm:p-10">
-            <div className="max-w-2xl">
-              <h2 className="text-2xl text-[#0a0a0a] sm:text-3xl">
-                Siap merapikan catatan kasir dan stok toko Anda?
-              </h2>
-              <p className="mt-2 text-sm leading-relaxed text-[#57534a] sm:text-base">
-                Daftar akun baru gratis atau masuk menggunakan 3 akun toko
-                contoh yang sudah kami sediakan untuk mencoba seluruh menu.
-              </p>
-              <div className="mt-5 flex flex-wrap gap-3 text-xs text-[#57534a]">
-                <span className="inline-flex items-center gap-1.5">
-                  <Check className="h-4 w-4 text-[#1a76d1]" />
-                  Toko Sembako Berkah Jaya
-                </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <Check className="h-4 w-4 text-[#1a76d1]" />
-                  Butik Nusantara Wear
-                </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <Check className="h-4 w-4 text-[#1a76d1]" />
-                  Toko Bahan Kue Manis
-                </span>
-              </div>
-              <div className="mt-7 flex flex-wrap gap-3">
-                <Link
-                  href="/register"
-                  className="rounded-full bg-[#1a76d1] px-6 py-3 text-sm text-white transition-colors hover:bg-[#1565c0]"
-                >
-                  Daftar Toko Baru
-                </Link>
-                <Link
-                  href="/login"
-                  className="rounded-full border border-[#ddd3c2] bg-[#fffdf9] px-6 py-3 text-sm text-[#0a0a0a] transition-colors hover:bg-[#f3ede2]"
-                >
-                  Masuk ke Akun Contoh
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* FOOTER */}
-      <footer className="border-t border-[#ddd3c2] bg-[#faf6ef] py-8 text-xs text-[#57534a]">
-        <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-4 px-4 sm:flex-row sm:items-center sm:px-6">
+        <RevealOnScroll
+          stagger
+          className="mx-auto my-auto w-full max-w-6xl px-4 sm:px-6"
+        >
           <div>
-            <span className="text-[#0a0a0a]">Warungin</span> - Aplikasi kasir,
-            stok barang, dan katalog pesanan WhatsApp untuk UMKM ritel
-            Indonesia.
+            <div className="max-w-2xl">
+              <div className="text-xs tracking-wider text-[#57534a]">
+                CARA MULAI PAKAI
+              </div>
+              <h2 className="mt-1 text-2xl text-[#0a0a0a] sm:text-3xl">
+                Tiga langkah sederhana dari daftar sampai siap jualan.
+              </h2>
+            </div>
+
+            <div className="mt-6 grid grid-cols-1 gap-4 sm:mt-8 sm:gap-5 md:grid-cols-3">
+              {[
+                {
+                  n: "01",
+                  title: "Ceritakan jualan toko Anda",
+                  text: "Pilih atau tulis jenis usaha, pasang logo dan banner toko, lalu jawab pertanyaan singkat agar menu kasir dan stok sesuai kebutuhan.",
+                },
+                {
+                  n: "02",
+                  title: "Masukkan foto & harga barang",
+                  text: "Unggah foto barang dagangan, isi harga beli, harga jual, dan sisa stok. Aktifkan katalog online untuk barang yang bisa dipesan.",
+                },
+                {
+                  n: "03",
+                  title: "Layani pembeli di kasir & WhatsApp",
+                  text: "Catat pembeli di kasir, cetak atau kirim struk, lalu setujui pesanan online agar stok dan penjualan tercatat.",
+                },
+              ].map((step) => (
+                <div key={step.n} data-motion-item className="rounded-xl border border-[#ddd3c2] bg-[#ffffff] p-5 sm:p-6">
+                  <div className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#faf6ef] text-sm text-[#1a76d1]">
+                    {step.n}
+                  </div>
+                  <h3 className="mt-4 text-base text-[#0a0a0a] sm:text-lg">{step.title}</h3>
+                  <p className="mt-2 text-xs leading-relaxed text-[#57534a] sm:text-sm">
+                    {step.text}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-8 rounded-2xl border border-[#ddd3c2] bg-[#faf6ef] p-5 sm:mt-10 sm:p-9">
+              <div className="flex flex-col items-start justify-between gap-5 sm:gap-6 lg:flex-row lg:items-center">
+                <div className="max-w-xl">
+                  <h3 className="text-lg text-[#0a0a0a] sm:text-2xl">
+                    Siap merapikan kasir dan membuka katalog online toko Anda?
+                  </h3>
+                  <div className="mt-3 flex flex-wrap gap-3 text-xs text-[#57534a] sm:gap-4">
+                    <span className="inline-flex items-center gap-1.5">
+                      <Check className="h-4 w-4 text-[#1a76d1]" />
+                      Bisa untuk segala jenis jualan ritel
+                    </span>
+                    <span className="inline-flex items-center gap-1.5">
+                      <Check className="h-4 w-4 text-[#1a76d1]" />
+                      Lengkap foto barang, logo, & banner toko
+                    </span>
+                    <span className="inline-flex items-center gap-1.5">
+                      <Check className="h-4 w-4 text-[#1a76d1]" />
+                      Struk siap cetak & kirim ke WhatsApp
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex w-full flex-col gap-2.5 sm:w-auto sm:flex-row sm:flex-wrap sm:gap-3">
+                  <Link
+                    href="/register"
+                    className="inline-flex min-h-[44px] w-full items-center justify-center rounded-full bg-[#1a76d1] px-6 py-3 text-sm text-white transition-colors hover:bg-[#1565c0] sm:w-auto"
+                  >
+                    Buat Toko Sekarang
+                  </Link>
+                  <Link
+                    href="/login"
+                    className="inline-flex min-h-[44px] w-full items-center justify-center rounded-full border border-[#ddd3c2] bg-[#fffdf9] px-6 py-3 text-sm text-[#0a0a0a] transition-colors hover:bg-[#f3ede2] sm:w-auto"
+                  >
+                    Masuk ke Akun
+                  </Link>
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="flex gap-5">
-            <Link href="/login" className="hover:text-[#0a0a0a]">
-              Masuk
-            </Link>
-            <Link href="/register" className="hover:text-[#0a0a0a]">
-              Daftar Toko
-            </Link>
-            <Link href="/toko/berkah-jaya" className="hover:text-[#0a0a0a]">
-              Contoh Katalog
-            </Link>
+        </RevealOnScroll>
+
+        <footer className="mt-10 border-t border-[#ddd3c2] pt-6 text-xs text-[#57534a] sm:mt-12 sm:pt-8">
+          <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-4 px-4 sm:flex-row sm:items-center sm:px-6">
+            <div>
+              Warungin - Aplikasi kasir, stok barang, dan katalog pesanan
+              WhatsApp untuk toko ritel di Indonesia.
+            </div>
+            <div className="flex flex-wrap items-center gap-4 sm:gap-5">
+              <span>&copy; 2026 Warungin</span>
+              <Link href="/toko" className="py-1 hover:text-[#0a0a0a]">
+                Daftar Toko
+              </Link>
+              <Link href="/login" className="py-1 hover:text-[#0a0a0a]">
+                Masuk
+              </Link>
+              <Link href="/register" className="py-1 hover:text-[#0a0a0a]">
+                Buat Toko
+              </Link>
+            </div>
           </div>
-        </div>
-      </footer>
+        </footer>
+      </section>
     </div>
   );
 }

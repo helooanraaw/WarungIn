@@ -4,9 +4,11 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
+import BrandLogo from "@/components/BrandLogo";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -20,7 +22,7 @@ export default function RegisterPage() {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ name, email, password }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -36,23 +38,28 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f4f7fa] px-4 py-10 text-[#22303c]">
+    <div className="min-h-[100dvh] bg-[#f4f7fa] px-4 py-6 pb-[calc(2rem+env(safe-area-inset-bottom))] text-[#22303c] sm:py-10">
       <div className="mx-auto max-w-md">
-        <div className="mb-6 flex items-center justify-between">
+        <div className="mb-5 flex items-center justify-between sm:mb-6">
           <Link
             href="/"
-            className="inline-flex items-center gap-2 text-xs text-[#5f6f82] hover:text-[#22303c]"
+            className="inline-flex min-h-[44px] items-center gap-2 text-xs text-[#5f6f82] hover:text-[#22303c] sm:min-h-0"
           >
             <ArrowLeft className="h-4 w-4" />
-            <span>Kembali ke Halaman Utama</span>
+            <span>Beranda</span>
           </Link>
+          <span className="inline-flex items-center gap-2 text-xs text-[#22303c]">
+            <BrandLogo size={20} variant="color" />
+            <span>Warungin</span>
+          </span>
         </div>
 
-        <div className="op-card p-6">
-          <h1 className="text-xl text-[#22303c]">Daftar Akun Toko Baru</h1>
+        <div className="op-card p-5 sm:p-6">
+          <h1 className="text-xl text-[#22303c]">Buat Akun Pemilik Toko</h1>
           <p className="mt-1.5 text-xs leading-relaxed text-[#5f6f82]">
-            Buat akun pemilik toko terlebih dahulu, lalu lanjutkan ke pengaturan
-            profil dan modul usaha dalam 5 langkah singkat.
+            Satu akun digunakan untuk mengelola satu toko. Setelah ini AI akan
+            menanyakan kebutuhan usaha Anda untuk menyiapkan template halaman
+            dashboard yang paling sesuai.
           </p>
 
           {error && (
@@ -64,10 +71,27 @@ export default function RegisterPage() {
           <form onSubmit={handleRegister} className="mt-5 space-y-4">
             <div>
               <label className="mb-1.5 block text-xs text-[#22303c]">
-                Alamat Email Pemilik Toko
+                Nama Lengkap Pemilik
+              </label>
+              <input
+                type="text"
+                autoComplete="name"
+                required
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Contoh: Budi Santoso"
+                className="op-input"
+              />
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-xs text-[#22303c]">
+                Alamat Email
               </label>
               <input
                 type="email"
+                inputMode="email"
+                autoComplete="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -78,10 +102,11 @@ export default function RegisterPage() {
 
             <div>
               <label className="mb-1.5 block text-xs text-[#22303c]">
-                Kata Sandi Baru
+                Kata Sandi
               </label>
               <input
                 type="password"
+                autoComplete="new-password"
                 required
                 minLength={4}
                 value={password}
@@ -96,7 +121,7 @@ export default function RegisterPage() {
               disabled={loading}
               className="op-btn op-btn-primary w-full"
             >
-              {loading ? "Menyiapkan Akun..." : "Lanjut ke Pengaturan Toko"}
+              {loading ? "Menyiapkan Akun..." : "Lanjut Atur Kebutuhan Toko"}
             </button>
           </form>
 

@@ -1,14 +1,23 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import Link from "next/link";
 import { PageHeader, Pager } from "@/components/erp/AppShell";
-import { fmtRp } from "@/lib/format";
-import { Plus, Search } from "lucide-react";
+import { fmtRp, getExpiryStatus } from "@/lib/format";
+import {
+  Plus,
+  Search,
+  Image as ImageIcon,
+  Pencil,
+  Trash2,
+} from "lucide-react";
 
 interface ProductRow {
   id: string;
   sku: string;
   name: string;
+  product_category: string | null;
+  image_url: string | null;
   unit: string;
   cost_price: number;
   sell_price: number;
@@ -21,6 +30,8 @@ interface ProductRow {
 }
 
 interface ModulesConfig {
+  custom_attribute_label: string;
+  default_unit: string;
   enable_expiry_tracking: boolean;
   enable_variant_matrix: boolean;
   enable_wholesale_tier: boolean;
@@ -39,22 +50,6 @@ export default function InventoryPage() {
   const [page, setPage] = useState(1);
   const pageSize = 10;
 
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<ProductRow | null>(null);
-  const [sku, setSku] = useState("");
-  const [name, setName] = useState("");
-  const [unit, setUnit] = useState("pcs");
-  const [costPrice, setCostPrice] = useState("");
-  const [sellPrice, setSellPrice] = useState("");
-  const [wholesalePrice, setWholesalePrice] = useState("");
-  const [wholesaleMinQty, setWholesaleMinQty] = useState("");
-  const [stockQty, setStockQty] = useState("");
-  const [variantLabel, setVariantLabel] = useState("");
-  const [expiryDate, setExpiryDate] = useState("");
-  const [isOnline, setIsOnline] = useState(true);
-  const [formError, setFormError] = useState("");
-  const [saving, setSaving] = useState(false);
-
   function loadData() {
     setLoading(true);
     fetch("/api/products")
@@ -72,114 +67,10 @@ export default function InventoryPage() {
     loadData();
   }, []);
 
-  function openCreateModal() {
-    setEditingProduct(null);
-    setSku(`SKU-${String(products.length + 1).padStart(3, "0")}`);
-    setName("");
-    setUnit("pcs");
-    setCostPrice("");
-    setSellPrice("");
-    setWholesalePrice("");
-    setWholesaleMinQty("");
-    setStockQty("10");
-    setVariantLabel("");
-    setExpiryDate("");
-    setIsOnline(true);
-    setFormError("");
-    setModalOpen(true);
-  }
-
-  function openEditModal(p: ProductRow) {
-    setEditingProduct(p);
-    setSku(p.sku);
-    setName(p.name);
-    setUnit(p.unit);
-    setCostPrice(String(p.cost_price));
-    setSellPrice(String(p.sell_price));
-    setWholesalePrice(p.wholesale_price ? String(p.wholesale_price) : "");
-    setWholesaleMinQty(p.wholesale_min_qty ? String(p.wholesale_min_qty) : "");
-    setStockQty(String(p.stock_qty));
-    setVariantLabel(p.variant_label || "");
-    setExpiryDate(p.expiry_date || "");
-    setIsOnline(p.is_online);
-    setFormError("");
-    setModalOpen(true);
-  }
-
-  async function handleSaveProduct(e: React.FormEvent) {
-    e.preventDefault();
-    setFormError("");
-    setSaving(true);
-
-    const payload = {
-      sku,
-      name,
-      unit,
-      cost_price: Number(costPrice || 0),
-      sell_price: Number(sellPrice || 0),
-      wholesale_price: wholesalePrice ? Number(wholesalePrice) : null,
-      wholesale_min_qty: wholesaleMinQty ? Number(wholesaleMinQty) : null,
-      stock_qty: Number(stockQty || 0),
-      variant_label: variantLabel || null,
-      expiry_date: expiryDate || null,
-      is_online: isOnline,
-    };
-
-    try {
-      const url = editingProduct
-        ? `/api/products/${editingProduct.id}`
-        : "/api/products";
-      const method = editingProduct ? "PATCH" : "POST";
-
-      const res = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setFormError(data.error || "Gagal menyimpan produk.");
-      } else {
-        setModalOpen(false);
-        loadData();
-      }
-    } catch {
-      setFormError("Terjadi gangguan koneksi.");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function toggleOnlineStatus(p: ProductRow) {
-    const nextVal = !p.is_online;
-    setProducts((prev) =>
-      prev.map((item) =>
-        item.id === p.id ? { ...item, is_online: nextVal } : item
-      )
-    );
-    await fetch(`/api/products/${p.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ is_online: nextVal }),
-    });
-  }
-
-  async function adjustStock(p: ProductRow, delta: number) {
-    const nextStock = Math.max(0, p.stock_qty + delta);
-    setProducts((prev) =>
-      prev.map((item) =>
-        item.id === p.id ? { ...item, stock_qty: nextStock } : item
-      )
-    );
-    await fetch(`/api/products/${p.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ stock_delta: delta }),
-    });
-  }
+  const attrLabel = config?.custom_attribute_label || "Ukuran / Pilihan";
 
   async function deleteProduct(p: ProductRow) {
-    if (!window.confirm(`Hapus produk "${p.name}" dari daftar inventori?`)) {
+    if (!window.confirm(`Hapus barang "${p.name}" dari daftar stok?`)) {
       return;
     }
     const res = await fetch(`/api/products/${p.id}`, { method: "DELETE" });
@@ -191,15 +82,26 @@ export default function InventoryPage() {
   const threshold = config?.low_stock_threshold ?? 10;
 
   const filtered = products.filter((p) => {
+    const q = search.toLowerCase();
     const matchText =
-      p.name.toLowerCase().includes(search.toLowerCase()) ||
-      p.sku.toLowerCase().includes(search.toLowerCase());
+      p.name.toLowerCase().includes(q) ||
+      p.sku.toLowerCase().includes(q) ||
+      (p.variant_label || "").toLowerCase().includes(q) ||
+      (p.product_category || "").toLowerCase().includes(q);
     if (!matchText) return false;
+
+    const expInfo = getExpiryStatus(p.expiry_date);
 
     if (stockFilter === "LOW" && !(p.stock_qty > 0 && p.stock_qty <= threshold))
       return false;
     if (stockFilter === "OUT" && p.stock_qty > 0) return false;
     if (stockFilter === "SAFE" && p.stock_qty <= threshold) return false;
+    if (
+      stockFilter === "EXPIRING_SOON" &&
+      expInfo.status !== "EXPIRING_SOON"
+    )
+      return false;
+    if (stockFilter === "EXPIRED" && expInfo.status !== "EXPIRED") return false;
 
     if (onlineFilter === "ONLINE" && !p.is_online) return false;
     if (onlineFilter === "OFFLINE" && p.is_online) return false;
@@ -209,26 +111,30 @@ export default function InventoryPage() {
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
+  const tableColumnCount =
+    6 +
+    Number(Boolean(config?.enable_variant_matrix)) +
+    Number(Boolean(config?.enable_wholesale_tier)) +
+    Number(Boolean(config?.enable_expiry_tracking));
 
   return (
     <div>
       <PageHeader
-        title="Produk & Stok"
-        subtitle="Daftar barang dagangan, sisa stok fisik, dan pengaturan tayang di katalog online."
-        breadcrumb="Produk & Stok"
+        title="Barang & Stok"
+        subtitle={`${products.length} dari maksimal ${quotaMax} barang terdaftar di toko Anda.`}
+        breadcrumb="Barang & Stok"
         actions={
           <>
             <span className="op-tag">
-              Kuota: {products.length} / {quotaMax} SKU
+              {products.length} / {quotaMax} Barang
             </span>
-            <button
-              type="button"
-              onClick={openCreateModal}
-              className="op-btn op-btn-primary"
+            <Link
+              href="/dashboard/inventory/new"
+              className="op-btn op-btn-primary flex-1 sm:flex-none"
             >
               <Plus className="h-4 w-4" />
-              <span>Tambah Produk</span>
-            </button>
+              <span>Tambah Barang</span>
+            </Link>
           </>
         }
       />
@@ -237,7 +143,7 @@ export default function InventoryPage() {
       <div className="op-card mb-4 p-3.5">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-12">
           <div className="relative sm:col-span-6">
-            <Search className="absolute top-2.5 left-3 h-4 w-4 text-[#5f6f82]" />
+            <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-[#5f6f82]" />
             <input
               type="text"
               value={search}
@@ -245,7 +151,11 @@ export default function InventoryPage() {
                 setSearch(e.target.value);
                 setPage(1);
               }}
-              placeholder="Cari nama barang atau kode SKU..."
+              placeholder={
+                config?.enable_variant_matrix
+                  ? `Cari nama barang, kategori, atau ${attrLabel.toLowerCase()}...`
+                  : "Cari nama barang, kategori, atau kode..."
+              }
               className="op-input pl-9"
             />
           </div>
@@ -259,10 +169,18 @@ export default function InventoryPage() {
               }}
               className="op-select"
             >
-              <option value="ALL">Semua Status Stok</option>
+              <option value="ALL">Semua Kondisi Stok</option>
               <option value="SAFE">Stok Aman (&gt; {threshold})</option>
-              <option value="LOW">Stok Menipis (&le; {threshold})</option>
+              <option value="LOW">Stok Hampir Habis (&le; {threshold})</option>
               <option value="OUT">Stok Habis (0)</option>
+              {config?.enable_expiry_tracking && (
+                <>
+                  <option value="EXPIRING_SOON">
+                    Dekat Kadaluarsa (&le; 14 Hari)
+                  </option>
+                  <option value="EXPIRED">Sudah Lewat Kadaluarsa</option>
+                </>
+              )}
             </select>
           </div>
 
@@ -275,31 +193,166 @@ export default function InventoryPage() {
               }}
               className="op-select"
             >
-              <option value="ALL">Semua Visibilitas Katalog</option>
-              <option value="ONLINE">Tayang di Katalog Online</option>
-              <option value="OFFLINE">Khusus Kasir Toko (Offline)</option>
+              <option value="ALL">Semua Tampilan Katalog</option>
+              <option value="ONLINE">Tampil di Toko Online</option>
+              <option value="OFFLINE">Hanya di Kasir Toko</option>
             </select>
           </div>
         </div>
       </div>
 
-      {/* INDEX TABLE PRODUK & STOK */}
+      {/* DAFTAR BARANG & STOK */}
       <div className="op-card overflow-hidden">
-        <div className="overflow-x-auto">
+        {/* KARTU STOK MOBILE (< 768px) */}
+        <div className="divide-y divide-[#edf2f7] md:hidden">
+          {loading ? (
+            <div className="px-4 py-8 text-center text-xs text-[#5f6f82]">
+              Memuat daftar barang...
+            </div>
+          ) : paginated.length === 0 ? (
+            <div className="px-4 py-8 text-center text-xs text-[#5f6f82]">
+              Belum ada barang terdaftar. Klik tombol Tambah Barang untuk
+              memasukkan foto dan harga barang dagangan Anda.
+            </div>
+          ) : (
+            paginated.map((p) => {
+              const isLow = p.stock_qty > 0 && p.stock_qty <= threshold;
+              const isOut = p.stock_qty <= 0;
+              const expInfo = getExpiryStatus(p.expiry_date);
+
+              return (
+                <div key={p.id} className="space-y-3 p-3.5">
+                  <div className="flex items-start gap-3">
+                    {p.image_url ? (
+                      <img
+                        src={p.image_url}
+                        alt={p.name}
+                        className="h-14 w-14 shrink-0 rounded-lg border border-[#d8e1ea] object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border border-[#d8e1ea] bg-[#f8fafc] text-[#8fa3b5]">
+                        <ImageIcon className="h-5 w-5" />
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="line-clamp-2 text-sm text-[#22303c]">
+                            {p.name}
+                          </div>
+                          <div className="mt-0.5 truncate text-[11px] text-[#5f6f82]">
+                            {p.sku}
+                            {p.product_category
+                              ? ` · ${p.product_category}`
+                              : ""}
+                          </div>
+                        </div>
+                        <span
+                          className={`op-tag shrink-0 ${
+                            p.is_online ? "op-tag-success" : "text-[#5f6f82]"
+                          }`}
+                        >
+                          {p.is_online ? "Tayang" : "Offline"}
+                        </span>
+                      </div>
+
+                      <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs">
+                        <div className="tabular-nums">
+                          <span className="text-[#1976d2]">
+                            {fmtRp(p.sell_price)}
+                          </span>
+                          <span className="ml-1.5 text-[11px] text-[#5f6f82]">
+                            (Beli {fmtRp(p.cost_price)})
+                          </span>
+                        </div>
+                        <span
+                          className={`op-tag tabular-nums ${
+                            isOut
+                              ? "op-tag-danger"
+                              : isLow
+                              ? "op-tag-warn"
+                              : ""
+                          }`}
+                        >
+                          Stok: {p.stock_qty} {p.unit}
+                        </span>
+                      </div>
+
+                      {(config?.enable_variant_matrix && p.variant_label) ||
+                      (config?.enable_wholesale_tier &&
+                        p.wholesale_price &&
+                        p.wholesale_min_qty) ||
+                      (config?.enable_expiry_tracking && p.expiry_date) ? (
+                        <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-[#5f6f82]">
+                          {config?.enable_variant_matrix && p.variant_label && (
+                            <span>
+                              {attrLabel}: {p.variant_label}
+                            </span>
+                          )}
+                          {config?.enable_wholesale_tier &&
+                            p.wholesale_price &&
+                            p.wholesale_min_qty && (
+                              <span className="tabular-nums">
+                                Grosir {p.wholesale_min_qty}+:{" "}
+                                {fmtRp(p.wholesale_price)}
+                              </span>
+                            )}
+                          {config?.enable_expiry_tracking && p.expiry_date && (
+                            <span
+                              className={
+                                expInfo.status === "EXPIRED"
+                                  ? "text-[#c0392b]"
+                                  : expInfo.status === "EXPIRING_SOON"
+                                  ? "text-[#b56c09]"
+                                  : ""
+                              }
+                            >
+                              Exp: {p.expiry_date}
+                            </span>
+                          )}
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 pt-0.5">
+                    <Link
+                      href={`/dashboard/inventory/${p.id}`}
+                      className="op-btn op-btn-sm w-full"
+                    >
+                      <Pencil aria-hidden="true" className="h-3.5 w-3.5" />
+                      <span>Edit Barang</span>
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => deleteProduct(p)}
+                      className="op-btn op-btn-danger op-btn-sm w-full"
+                    >
+                      <Trash2 aria-hidden="true" className="h-3.5 w-3.5" />
+                      <span>Hapus</span>
+                    </button>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* INDEX TABLE DESKTOP (>= 768px) */}
+        <div className="hidden overflow-x-auto md:block">
           <table className="op-table">
             <thead>
               <tr>
-                <th>Kode SKU</th>
-                <th>Nama Produk</th>
-                {config?.enable_variant_matrix && <th>Varian</th>}
-                <th className="text-right">Harga Modal</th>
+                <th>Barang</th>
+                {config?.enable_variant_matrix && <th>{attrLabel}</th>}
+                <th className="text-right">Harga Beli</th>
                 <th className="text-right">Harga Jual</th>
                 {config?.enable_wholesale_tier && (
                   <th className="text-right">Harga Grosir</th>
                 )}
-                <th className="text-right">Stok Fisik</th>
-                {config?.enable_expiry_tracking && <th>Kedaluwarsa</th>}
-                <th>Katalog Online</th>
+                <th className="text-right">Sisa Stok</th>
+                {config?.enable_expiry_tracking && <th>Kadaluarsa</th>}
+                <th>Toko Online</th>
                 <th className="text-right">Aksi</th>
               </tr>
             </thead>
@@ -307,34 +360,55 @@ export default function InventoryPage() {
               {loading ? (
                 <tr>
                   <td
-                    colSpan={10}
+                    colSpan={tableColumnCount}
                     className="py-8 text-center text-xs text-[#5f6f82]"
                   >
-                    Memuat tabel produk...
+                    Memuat daftar barang...
                   </td>
                 </tr>
               ) : paginated.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={10}
+                    colSpan={tableColumnCount}
                     className="py-8 text-center text-xs text-[#5f6f82]"
                   >
-                    Belum ada barang yang sesuai filter. Klik tombol Tambah
-                    Produk di kanan atas untuk memasukkan barang baru.
+                    Belum ada barang terdaftar. Klik tombol Tambah Barang di
+                    kanan atas untuk memasukkan foto dan harga barang dagangan
+                    Anda.
                   </td>
                 </tr>
               ) : (
                 paginated.map((p) => {
                   const isLow = p.stock_qty > 0 && p.stock_qty <= threshold;
                   const isOut = p.stock_qty <= 0;
+                  const expInfo = getExpiryStatus(p.expiry_date);
 
                   return (
                     <tr key={p.id}>
-                      <td className="text-xs text-[#5f6f82]">{p.sku}</td>
                       <td>
-                        <div className="text-xs text-[#22303c]">{p.name}</div>
-                        <div className="text-[11px] text-[#5f6f82]">
-                          Satuan: {p.unit}
+                        <div className="flex items-center gap-3">
+                          {p.image_url ? (
+                            <img
+                              src={p.image_url}
+                              alt={p.name}
+                              className="h-10 w-10 shrink-0 rounded-[5px] border border-[#d8e1ea] object-cover"
+                            />
+                          ) : (
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[5px] border border-[#d8e1ea] bg-[#f8fafc] text-[#8fa3b5]">
+                              <ImageIcon className="h-4 w-4" />
+                            </div>
+                          )}
+                          <div>
+                            <div className="text-xs text-[#22303c]">
+                              {p.name}
+                            </div>
+                            <div className="text-[11px] text-[#5f6f82]">
+                              {p.sku}
+                              {p.product_category
+                                ? ` · ${p.product_category}`
+                                : ""}
+                            </div>
+                          </div>
                         </div>
                       </td>
                       {config?.enable_variant_matrix && (
@@ -356,67 +430,74 @@ export default function InventoryPage() {
                         </td>
                       )}
                       <td className="text-right">
-                        <div className="inline-flex items-center justify-end gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => adjustStock(p, -1)}
-                            className="op-btn op-btn-sm px-2"
-                          >
-                            -
-                          </button>
-                          <span
-                            className={`min-w-[54px] text-center text-xs tabular-nums ${
-                              isOut
-                                ? "text-[#c0392b]"
-                                : isLow
-                                ? "text-[#b56c09]"
-                                : "text-[#22303c]"
-                            }`}
-                          >
-                            {p.stock_qty} {p.unit}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => adjustStock(p, 1)}
-                            className="op-btn op-btn-sm px-2"
-                          >
-                            +
-                          </button>
-                        </div>
+                        <span
+                          className={`text-xs tabular-nums ${
+                            isOut
+                              ? "text-[#c0392b]"
+                              : isLow
+                              ? "text-[#b56c09]"
+                              : "text-[#22303c]"
+                          }`}
+                        >
+                          {p.stock_qty} {p.unit}
+                        </span>
                       </td>
                       {config?.enable_expiry_tracking && (
-                        <td className="text-xs text-[#5f6f82] tabular-nums">
-                          {p.expiry_date || "-"}
+                        <td className="text-xs tabular-nums">
+                          {expInfo.status === "EXPIRED" ? (
+                            <div>
+                              <span className="op-tag op-tag-danger">
+                                {expInfo.label}
+                              </span>
+                              <div className="mt-0.5 text-[11px] text-[#5f6f82]">
+                                {p.expiry_date}
+                              </div>
+                            </div>
+                          ) : expInfo.status === "EXPIRING_SOON" ? (
+                            <div>
+                              <span className="op-tag op-tag-warn">
+                                {expInfo.label}
+                              </span>
+                              <div className="mt-0.5 text-[11px] text-[#5f6f82]">
+                                {p.expiry_date}
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-[#5f6f82]">
+                              {p.expiry_date || "-"}
+                            </span>
+                          )}
                         </td>
                       )}
                       <td>
-                        <button
-                          type="button"
-                          onClick={() => toggleOnlineStatus(p)}
-                          className={`op-btn op-btn-sm ${
+                        <span
+                          className={`op-tag ${
                             p.is_online
-                              ? "border-[#b7e4de] bg-[#eefaf8] text-[#167a6f]"
-                              : "border-[#d8e1ea] bg-[#f8fafc] text-[#5f6f82]"
+                              ? "op-tag-success"
+                              : "text-[#5f6f82]"
                           }`}
                         >
-                          {p.is_online ? "Tayang" : "Nonaktif"}
-                        </button>
+                          {p.is_online ? "Tayang" : "Disembunyikan"}
+                        </span>
                       </td>
                       <td className="text-right">
                         <div className="inline-flex items-center gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => openEditModal(p)}
-                            className="op-btn op-btn-sm"
+                          <Link
+                            href={`/dashboard/inventory/${p.id}`}
+                            aria-label={`Edit ${p.name}`}
+                            title={`Edit ${p.name}`}
+                            className="op-btn op-btn-sm px-2.5"
                           >
-                            Ubah
-                          </button>
+                            <Pencil aria-hidden="true" className="h-3.5 w-3.5" />
+                          </Link>
                           <button
                             type="button"
                             onClick={() => deleteProduct(p)}
-                            className="op-btn op-btn-danger op-btn-sm"
+                            aria-label={`Hapus ${p.name}`}
+                            title={`Hapus ${p.name}`}
+                            className="op-btn op-btn-danger op-btn-sm px-2.5"
                           >
-                            Hapus
+                            <Trash2 aria-hidden="true" className="h-3.5 w-3.5" />
                           </button>
                         </div>
                       </td>
@@ -436,214 +517,6 @@ export default function InventoryPage() {
         />
       </div>
 
-      {/* MODAL TAMBAH / UBAH PRODUK */}
-      {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="op-card max-h-[92vh] w-full max-w-lg overflow-y-auto p-6">
-            <div className="flex items-center justify-between border-b border-[#d8e1ea] pb-3">
-              <h3 className="text-base text-[#22303c]">
-                {editingProduct ? "Ubah Data Produk" : "Tambah Produk Baru"}
-              </h3>
-              <button
-                type="button"
-                onClick={() => setModalOpen(false)}
-                className="text-xs text-[#5f6f82] hover:text-[#22303c]"
-              >
-                Tutup
-              </button>
-            </div>
-
-            {formError && (
-              <div className="mt-3 rounded-[5px] border border-[#f3c2be] bg-[#fdf2f2] px-3 py-2 text-xs text-[#c0392b]">
-                {formError}
-              </div>
-            )}
-
-            <form onSubmit={handleSaveProduct} className="mt-4 space-y-3.5">
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <div>
-                  <label className="mb-1 block text-xs text-[#22303c]">
-                    Kode SKU
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={sku}
-                    onChange={(e) => setSku(e.target.value)}
-                    className="op-input"
-                  />
-                </div>
-                <div className="sm:col-span-2">
-                  <label className="mb-1 block text-xs text-[#22303c]">
-                    Nama Produk
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Contoh: Beras Ramos 5 Kg"
-                    className="op-input"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <div>
-                  <label className="mb-1 block text-xs text-[#22303c]">
-                    Satuan
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={unit}
-                    onChange={(e) => setUnit(e.target.value)}
-                    placeholder="pcs / kg / bungkus"
-                    className="op-input"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs text-[#22303c]">
-                    Harga Modal (Rp)
-                  </label>
-                  <input
-                    type="number"
-                    min={0}
-                    required
-                    value={costPrice}
-                    onChange={(e) => setCostPrice(e.target.value)}
-                    className="op-input tabular-nums"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs text-[#22303c]">
-                    Harga Jual Ecer (Rp)
-                  </label>
-                  <input
-                    type="number"
-                    min={1}
-                    required
-                    value={sellPrice}
-                    onChange={(e) => setSellPrice(e.target.value)}
-                    className="op-input tabular-nums"
-                  />
-                </div>
-              </div>
-
-              {config?.enable_wholesale_tier && (
-                <div className="grid grid-cols-1 gap-3 rounded-[5px] border border-[#d8e1ea] bg-[#f8fafc] p-3 sm:grid-cols-2">
-                  <div>
-                    <label className="mb-1 block text-xs text-[#22303c]">
-                      Harga Jual Grosir (Rp)
-                    </label>
-                    <input
-                      type="number"
-                      min={0}
-                      value={wholesalePrice}
-                      onChange={(e) => setWholesalePrice(e.target.value)}
-                      placeholder="Opsional"
-                      className="op-input tabular-nums"
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-xs text-[#22303c]">
-                      Minimal Beli Grosir
-                    </label>
-                    <input
-                      type="number"
-                      min={1}
-                      value={wholesaleMinQty}
-                      onChange={(e) => setWholesaleMinQty(e.target.value)}
-                      placeholder="Contoh: 5"
-                      className="op-input tabular-nums"
-                    />
-                  </div>
-                </div>
-              )}
-
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <div>
-                  <label className="mb-1 block text-xs text-[#22303c]">
-                    Jumlah Stok Fisik
-                  </label>
-                  <input
-                    type="number"
-                    min={0}
-                    required
-                    value={stockQty}
-                    onChange={(e) => setStockQty(e.target.value)}
-                    className="op-input tabular-nums"
-                  />
-                </div>
-
-                {config?.enable_variant_matrix && (
-                  <div>
-                    <label className="mb-1 block text-xs text-[#22303c]">
-                      Label Varian (Ukuran/Warna)
-                    </label>
-                    <input
-                      type="text"
-                      value={variantLabel}
-                      onChange={(e) => setVariantLabel(e.target.value)}
-                      placeholder="Contoh: Ukuran L - Biru"
-                      className="op-input"
-                    />
-                  </div>
-                )}
-
-                {config?.enable_expiry_tracking && (
-                  <div>
-                    <label className="mb-1 block text-xs text-[#22303c]">
-                      Tanggal Kedaluwarsa
-                    </label>
-                    <input
-                      type="date"
-                      value={expiryDate}
-                      onChange={(e) => setExpiryDate(e.target.value)}
-                      className="op-input"
-                    />
-                  </div>
-                )}
-              </div>
-
-              <div className="flex items-center justify-between rounded-[5px] border border-[#d8e1ea] bg-[#f8fafc] px-3.5 py-2.5">
-                <div>
-                  <div className="text-xs text-[#22303c]">
-                    Tampilkan di Katalog Online
-                  </div>
-                  <div className="text-[11px] text-[#5f6f82]">
-                    Jika aktif, pembeli dapat melihat dan memesan barang ini via
-                    WhatsApp
-                  </div>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={isOnline}
-                  onChange={(e) => setIsOnline(e.target.checked)}
-                  className="h-4 w-4 accent-[#1976d2]"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setModalOpen(false)}
-                  className="op-btn"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="op-btn op-btn-primary"
-                >
-                  {saving ? "Menyimpan..." : "Simpan Produk"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

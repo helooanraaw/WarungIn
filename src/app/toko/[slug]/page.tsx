@@ -9,8 +9,9 @@ import {
   Plus,
   Search,
   ShoppingBag,
-  Store,
+  MapPin,
   Check,
+  Image as ImageIcon,
 } from "lucide-react";
 import { fmtRp } from "@/lib/format";
 
@@ -18,6 +19,8 @@ interface PublicProduct {
   id: string;
   sku: string;
   name: string;
+  product_category: string | null;
+  image_url: string | null;
   unit: string;
   sell_price: number;
   wholesale_price: number | null;
@@ -32,11 +35,16 @@ interface PublicStore {
   slug: string;
   category: string;
   description: string;
+  address: string | null;
+  logo_url: string | null;
+  banner_url: string | null;
   whatsapp_number: string | null;
   account_holder_name: string | null;
   modules_config: {
+    custom_attribute_label: string;
     enable_variant_matrix: boolean;
     enable_wholesale_tier: boolean;
+    enable_delivery_note: boolean;
   } | null;
 }
 
@@ -47,6 +55,7 @@ export default function PublicStoreCatalogPage() {
   const [store, setStore] = useState<PublicStore | null>(null);
   const [products, setProducts] = useState<PublicProduct[]>([]);
   const [search, setSearch] = useState("");
+  const [activeCategory, setActiveCategory] = useState("ALL");
   const [cart, setCart] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -54,6 +63,9 @@ export default function PublicStoreCatalogPage() {
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [customerName, setCustomerName] = useState("");
   const [customerWa, setCustomerWa] = useState("");
+  const [deliveryMethod, setDeliveryMethod] = useState<
+    "AMBIL_SENDIRI" | "DIANTAR"
+  >("AMBIL_SENDIRI");
   const [customerNote, setCustomerNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [orderError, setOrderError] = useState("");
@@ -131,9 +143,26 @@ export default function PublicStoreCatalogPage() {
   const totalQty = cartItems.reduce((s, i) => s + i.qty, 0);
   const totalAmount = cartItems.reduce((s, i) => s + i.subtotal, 0);
 
-  const filteredProducts = products.filter((p) =>
-    p.name.toLowerCase().includes(search.toLowerCase())
+  const uniqueCategories = Array.from(
+    new Set(
+      products
+        .map((p) => p.product_category?.trim())
+        .filter((c): c is string => Boolean(c))
+    )
   );
+
+  const filteredProducts = products.filter((p) => {
+    const q = search.toLowerCase();
+    const matchText =
+      p.name.toLowerCase().includes(q) ||
+      (p.variant_label || "").toLowerCase().includes(q) ||
+      (p.product_category || "").toLowerCase().includes(q);
+    if (!matchText) return false;
+    if (activeCategory !== "ALL" && p.product_category !== activeCategory) {
+      return false;
+    }
+    return true;
+  });
 
   async function handleSendWaOrder(e: React.FormEvent) {
     e.preventDefault();
@@ -147,6 +176,9 @@ export default function PublicStoreCatalogPage() {
         body: JSON.stringify({
           customer_name: customerName,
           customer_wa: customerWa,
+          delivery_method: store?.modules_config?.enable_delivery_note
+            ? deliveryMethod
+            : "",
           customer_note: customerNote,
           items: cartItems.map((i) => ({
             product_id: i.product.id,
@@ -175,7 +207,7 @@ export default function PublicStoreCatalogPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-[#fffdf9] px-4 py-12 text-center text-sm text-[#57534a]">
-        Memuat katalog toko...
+        Memuat halaman toko...
       </div>
     );
   }
@@ -184,90 +216,165 @@ export default function PublicStoreCatalogPage() {
     return (
       <div className="min-h-screen bg-[#fffdf9] px-4 py-16 text-center">
         <div className="mx-auto max-w-md rounded-xl border border-[#ddd3c2] bg-[#faf6ef] p-6">
-          <h1 className="text-lg text-[#0a0a0a]">Katalog Toko Tidak Ditemukan</h1>
+          <h1 className="text-lg text-[#0a0a0a]">Halaman Toko Tidak Aktif</h1>
           <p className="mt-2 text-xs text-[#57534a]">
-            Halaman toko ini mungkin sedang dinonaktifkan oleh pemiliknya atau
-            tautan yang Anda buka kurang tepat.
+            Toko ini mungkin sedang menutup katalog online atau alamat tautannya
+            kurang tepat.
           </p>
           <Link
             href="/"
             className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#1a76d1] px-5 py-2.5 text-xs text-white"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
-            <span>Kembali ke Beranda Warungin</span>
+            <span>Kembali ke Halaman Utama</span>
           </Link>
         </div>
       </div>
     );
   }
 
+  const attrLabel =
+    store.modules_config?.custom_attribute_label || "Pilihan";
+
   return (
-    <div className="min-h-screen bg-[#fffdf9] pb-28 text-[#0a0a0a]">
+    <div className="min-h-[100dvh] bg-[#fffdf9] pb-[calc(7.5rem+env(safe-area-inset-bottom))] text-[#0a0a0a]">
       {/* TOP BAR */}
-      <header className="border-b border-[#ddd3c2] bg-[#faf6ef]">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3.5 sm:px-6">
+      <header className="sticky top-0 z-20 border-b border-[#ddd3c2] bg-[#fffdf9]/95 backdrop-blur-sm">
+        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:px-6">
           <Link
-            href="/"
-            className="inline-flex items-center gap-2 text-xs text-[#57534a] hover:text-[#0a0a0a]"
+            href="/toko"
+            className="inline-flex min-h-[44px] items-center gap-2 text-xs text-[#57534a] hover:text-[#0a0a0a]"
           >
             <ArrowLeft className="h-4 w-4" />
-            <span>Etalase Warungin</span>
+            <span>Daftar Toko</span>
           </Link>
-          <span className="text-xs text-[#57534a]">
-            Katalog Online Resmi: /toko/{store.slug}
+          <span className="text-xs text-[#57534a] tabular-nums">
+            {products.length} barang tersedia
           </span>
         </div>
       </header>
 
-      {/* PROFIL TOKO */}
-      <section className="border-b border-[#ddd3c2] bg-[#fffdf9] py-8">
-        <div className="mx-auto max-w-5xl px-4 sm:px-6">
-          <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-            <div>
-              <div className="inline-flex items-center gap-1.5 text-xs text-[#1a76d1]">
-                <Store className="h-4 w-4" />
-                <span>{store.category}</span>
+      {/* HEADER TOKO BERGAYA E-COMMERCE (BANNER SAMPUL + KARTU LOGO PROFIL TOKO) */}
+      <section className="border-b border-[#ddd3c2] bg-[#faf6ef]">
+        <div className="mx-auto max-w-6xl px-0 sm:px-6 sm:pt-5">
+          <div className="overflow-hidden border-b border-[#ddd3c2] bg-[#e9e2d4] sm:rounded-2xl sm:border">
+            {store.banner_url ? (
+              <img
+                src={store.banner_url}
+                alt={`Banner ${store.store_name}`}
+                className="h-40 w-full object-cover sm:h-56"
+              />
+            ) : (
+              <div className="flex h-32 w-full items-center justify-between bg-[#1a76d1] px-6 text-white sm:h-44 sm:px-10">
+                <div>
+                  <div className="text-xs opacity-80">{store.category}</div>
+                  <div className="mt-1 text-xl sm:text-2xl">
+                    {store.store_name}
+                  </div>
+                </div>
               </div>
-              <h1 className="mt-1 text-2xl text-[#0a0a0a] sm:text-3xl">
-                {store.store_name}
-              </h1>
-              <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-[#57534a]">
-                {store.description}
-              </p>
-            </div>
-            <div className="rounded-xl border border-[#ddd3c2] bg-[#faf6ef] px-4 py-3 text-xs text-[#57534a]">
-              <div>Penanggung Jawab Toko:</div>
-              <div className="mt-0.5 text-sm text-[#0a0a0a]">
-                {store.account_holder_name || "Admin Toko"}
-              </div>
-              <div className="mt-1 text-[11px]">
-                Pemesanan diteruskan langsung ke WhatsApp toko
-              </div>
-            </div>
+            )}
           </div>
 
-          {/* PENCARIAN BARANG */}
-          <div className="mt-6 flex items-center gap-2 rounded-full border border-[#ddd3c2] bg-white px-4 py-2.5">
-            <Search className="h-4 w-4 text-[#57534a]" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Cari nama barang di toko ini..."
-              className="w-full bg-transparent text-sm text-[#0a0a0a] outline-none"
-            />
+          {/* PROFIL RETAIL & LOGO */}
+          <div className="px-4 py-5 sm:px-2">
+            <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+              <div className="flex items-start gap-4">
+                {store.logo_url ? (
+                  <img
+                    src={store.logo_url}
+                    alt={store.store_name}
+                    className="-mt-10 h-18 w-18 shrink-0 rounded-2xl border-2 border-[#fffdf9] bg-white object-cover shadow-sm sm:-mt-12 sm:h-20 sm:w-20"
+                  />
+                ) : (
+                  <div className="-mt-10 flex h-18 w-18 shrink-0 items-center justify-center rounded-2xl border-2 border-[#fffdf9] bg-[#1a76d1] text-2xl text-white shadow-sm sm:-mt-12 sm:h-20 sm:w-20">
+                    {store.store_name.charAt(0).toUpperCase()}
+                  </div>
+                )}
+
+                <div>
+                  <div className="text-xs text-[#1a76d1]">{store.category}</div>
+                  <h1 className="text-xl text-[#0a0a0a] sm:text-2xl">
+                    {store.store_name}
+                  </h1>
+                  <p className="mt-1 max-w-2xl text-xs leading-relaxed text-[#57534a] sm:text-sm">
+                    {store.description}
+                  </p>
+                  {store.address && (
+                    <div className="mt-1.5 inline-flex items-center gap-1 text-xs text-[#57534a]">
+                      <MapPin className="h-3.5 w-3.5 text-[#1a76d1]" />
+                      <span>{store.address}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-[#ddd3c2] bg-[#fffdf9] px-4 py-3 text-xs text-[#57534a]">
+                <div>Dilayani oleh:</div>
+                <div className="mt-0.5 text-sm text-[#0a0a0a]">
+                  {store.account_holder_name || "Admin Toko"}
+                </div>
+                <div className="mt-0.5 text-[11px]">
+                  Pesanan diteruskan langsung ke WhatsApp
+                </div>
+              </div>
+            </div>
+
+            {/* BAR PENCARIAN & FILTER KATEGORI BARANG */}
+            <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
+              <div className="flex flex-1 items-center gap-2 rounded-full border border-[#ddd3c2] bg-white px-4 py-2.5 sm:py-2">
+                <Search className="h-4 w-4 shrink-0 text-[#57534a]" />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Cari barang di toko ini..."
+                  className="w-full bg-transparent text-base text-[#0a0a0a] outline-none sm:text-sm"
+                />
+              </div>
+
+              {uniqueCategories.length > 0 && (
+                <div className="no-scrollbar -mx-4 flex flex-nowrap gap-1.5 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
+                  <button
+                    type="button"
+                    onClick={() => setActiveCategory("ALL")}
+                    className={`min-h-[40px] shrink-0 rounded-full px-3.5 py-1.5 text-xs transition-colors sm:min-h-0 ${
+                      activeCategory === "ALL"
+                        ? "bg-[#1a76d1] text-white"
+                        : "border border-[#ddd3c2] bg-white text-[#0a0a0a]"
+                    }`}
+                  >
+                    Semua
+                  </button>
+                  {uniqueCategories.map((cat) => (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => setActiveCategory(cat)}
+                      className={`min-h-[40px] shrink-0 rounded-full px-3.5 py-1.5 text-xs transition-colors sm:min-h-0 ${
+                        activeCategory === cat
+                          ? "bg-[#1a76d1] text-white"
+                          : "border border-[#ddd3c2] bg-white text-[#0a0a0a]"
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </section>
 
-      {/* DAFTAR BARANG */}
-      <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
+      {/* GRID PRODUK E-COMMERCE */}
+      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
         {filteredProducts.length === 0 ? (
           <div className="rounded-xl border border-[#ddd3c2] bg-[#faf6ef] p-8 text-center text-sm text-[#57534a]">
-            Tidak ada barang yang cocok dengan pencarian Anda.
+            Belum ada barang yang cocok dengan pencarian Anda.
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
             {filteredProducts.map((p) => {
               const qtyInCart = cart[p.id] || 0;
               const outOfStock = p.stock_qty <= 0;
@@ -275,80 +382,107 @@ export default function PublicStoreCatalogPage() {
               return (
                 <div
                   key={p.id}
-                  className="flex flex-col justify-between rounded-xl border border-[#ddd3c2] bg-[#faf6ef] p-5"
+                  className="flex flex-col justify-between overflow-hidden rounded-xl border border-[#ddd3c2] bg-white"
                 >
                   <div>
-                    <div className="flex items-center justify-between text-xs text-[#57534a]">
-                      <span>Kode: {p.sku}</span>
-                      <span className="tabular-nums">
-                        {outOfStock
-                          ? "Stok Habis"
-                          : `Stok Tersedia: ${p.stock_qty} ${p.unit}`}
-                      </span>
-                    </div>
-                    <h2 className="mt-2 text-base text-[#0a0a0a]">{p.name}</h2>
-                    {p.variant_label && (
-                      <div className="mt-1 text-xs text-[#57534a]">
-                        Varian: {p.variant_label}
-                      </div>
-                    )}
-                    {store.modules_config?.enable_wholesale_tier &&
-                      p.wholesale_price &&
-                      p.wholesale_min_qty && (
-                        <div className="mt-2 rounded-lg border border-[#ddd3c2] bg-[#fffdf9] px-2.5 py-1 text-[11px] text-[#57534a]">
-                          Grosir min. {p.wholesale_min_qty} {p.unit}:{" "}
-                          <span className="text-[#0a0a0a] tabular-nums">
-                            {fmtRp(p.wholesale_price)}
-                          </span>{" "}
-                          / {p.unit}
+                    {/* FOTO BARANG */}
+                    <div className="relative aspect-square w-full overflow-hidden border-b border-[#ddd3c2] bg-[#faf6ef]">
+                      {p.image_url ? (
+                        <img
+                          src={p.image_url}
+                          alt={p.name}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full flex-col items-center justify-center gap-1 text-[#57534a]">
+                          <ImageIcon className="h-7 w-7 opacity-40" />
+                          <span className="text-[11px] opacity-60">
+                            {p.product_category || "Barang"}
+                          </span>
                         </div>
                       )}
+                      {p.product_category && (
+                        <span className="absolute top-2 left-2 rounded-full bg-white/90 px-2.5 py-0.5 text-[10px] text-[#0a0a0a]">
+                          {p.product_category}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="p-3.5">
+                      <h2 className="line-clamp-2 text-sm leading-snug text-[#0a0a0a] sm:text-base">
+                        {p.name}
+                      </h2>
+
+                      {store.modules_config?.enable_variant_matrix &&
+                        p.variant_label && (
+                          <div className="mt-1 text-xs text-[#57534a]">
+                            {attrLabel}: {p.variant_label}
+                          </div>
+                        )}
+
+                      {store.modules_config?.enable_wholesale_tier &&
+                        p.wholesale_price &&
+                        p.wholesale_min_qty && (
+                          <div className="mt-1.5 rounded-lg border border-[#ddd3c2] bg-[#faf6ef] px-2 py-1 text-[11px] text-[#57534a]">
+                            Beli min. {p.wholesale_min_qty} {p.unit}:{" "}
+                            <span className="text-[#0a0a0a] tabular-nums">
+                              {fmtRp(p.wholesale_price)}
+                            </span>
+                          </div>
+                        )}
+                    </div>
                   </div>
 
-                  <div className="mt-5 flex items-center justify-between border-t border-[#ddd3c2] pt-3.5">
-                    <div>
-                      <div className="text-base text-[#0a0a0a] tabular-nums">
+                  <div className="border-t border-[#eee7da] p-3 pt-2.5 sm:p-3.5">
+                    <div className="flex flex-wrap items-baseline justify-between gap-1">
+                      <div className="text-sm text-[#1a76d1] tabular-nums sm:text-base">
                         {fmtRp(p.sell_price)}
                       </div>
-                      <div className="text-[11px] text-[#57534a]">
-                        per {p.unit}
+                      <div className="text-[11px] text-[#57534a] tabular-nums">
+                        {outOfStock
+                          ? "Habis"
+                          : `Stok ${p.stock_qty} ${p.unit}`}
                       </div>
                     </div>
 
-                    {outOfStock ? (
-                      <span className="rounded-full border border-[#ddd3c2] px-3.5 py-1.5 text-xs text-[#57534a]">
-                        Stok Habis
-                      </span>
-                    ) : qtyInCart === 0 ? (
-                      <button
-                        type="button"
-                        onClick={() => updateQty(p, 1)}
-                        className="rounded-full bg-[#1a76d1] px-4 py-2 text-xs text-white transition-colors hover:bg-[#1565c0]"
-                      >
-                        Tambah Pesanan
-                      </button>
-                    ) : (
-                      <div className="flex items-center gap-2 rounded-full border border-[#1a76d1] bg-white px-2 py-1">
-                        <button
-                          type="button"
-                          onClick={() => updateQty(p, -1)}
-                          className="flex h-6 w-6 items-center justify-center rounded-full bg-[#faf6ef] text-[#0a0a0a]"
-                        >
-                          <Minus className="h-3.5 w-3.5" />
-                        </button>
-                        <span className="min-w-[24px] text-center text-xs tabular-nums">
-                          {qtyInCart}
-                        </span>
+                    <div className="mt-2.5">
+                      {outOfStock ? (
+                        <div className="w-full rounded-full border border-[#ddd3c2] py-2 text-center text-xs text-[#57534a]">
+                          Stok Habis
+                        </div>
+                      ) : qtyInCart === 0 ? (
                         <button
                           type="button"
                           onClick={() => updateQty(p, 1)}
-                          disabled={qtyInCart >= p.stock_qty}
-                          className="flex h-6 w-6 items-center justify-center rounded-full bg-[#1a76d1] text-white disabled:opacity-40"
+                          className="min-h-[40px] w-full rounded-full bg-[#1a76d1] py-2 text-xs text-white transition-colors hover:bg-[#1565c0] sm:min-h-0"
                         >
-                          <Plus className="h-3.5 w-3.5" />
+                          + Keranjang
                         </button>
-                      </div>
-                    )}
+                      ) : (
+                        <div className="flex items-center justify-between rounded-full border border-[#1a76d1] bg-[#faf6ef] px-1.5 py-1 sm:px-2">
+                          <button
+                            type="button"
+                            onClick={() => updateQty(p, -1)}
+                            aria-label={`Kurangi ${p.name}`}
+                            className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-[#0a0a0a] sm:h-6 sm:w-6"
+                          >
+                            <Minus className="h-3.5 w-3.5" />
+                          </button>
+                          <span className="text-xs tabular-nums">
+                            {qtyInCart} {p.unit}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => updateQty(p, 1)}
+                            disabled={qtyInCart >= p.stock_qty}
+                            aria-label={`Tambah ${p.name}`}
+                            className="flex h-8 w-8 items-center justify-center rounded-full bg-[#1a76d1] text-white disabled:opacity-40 sm:h-6 sm:w-6"
+                          >
+                            <Plus className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               );
@@ -359,18 +493,18 @@ export default function PublicStoreCatalogPage() {
 
       {/* FLOATING CART BAR */}
       {cartItems.length > 0 && (
-        <div className="fixed right-0 bottom-0 left-0 z-30 border-t border-[#ddd3c2] bg-[#fffdf9] px-4 py-3.5 shadow-lg">
-          <div className="mx-auto flex max-w-5xl items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#1a76d1] text-white">
+        <div className="fixed right-0 bottom-0 left-0 z-30 border-t border-[#ddd3c2] bg-[#fffdf9] px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-lg sm:py-3.5">
+          <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 sm:gap-4">
+            <div className="flex min-w-0 items-center gap-2.5 sm:gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#1a76d1] text-white">
                 <ShoppingBag className="h-4 w-4" />
               </div>
-              <div>
-                <div className="text-xs text-[#57534a]">
-                  {cartItems.length} jenis barang ({totalQty} item)
+              <div className="min-w-0">
+                <div className="truncate text-[11px] text-[#57534a] sm:text-xs">
+                  {cartItems.length} barang ({totalQty} item)
                 </div>
-                <div className="text-base text-[#0a0a0a] tabular-nums">
-                  Total: {fmtRp(totalAmount)}
+                <div className="truncate text-sm text-[#0a0a0a] tabular-nums sm:text-base">
+                  {fmtRp(totalAmount)}
                 </div>
               </div>
             </div>
@@ -382,30 +516,32 @@ export default function PublicStoreCatalogPage() {
                 setOrderError("");
                 setCheckoutOpen(true);
               }}
-              className="rounded-full bg-[#1a76d1] px-6 py-2.5 text-sm text-white transition-colors hover:bg-[#1565c0]"
+              className="min-h-[44px] shrink-0 rounded-full bg-[#1a76d1] px-4 py-2.5 text-xs text-white transition-colors hover:bg-[#1565c0] sm:px-6 sm:text-sm"
             >
-              Pesan via WhatsApp
+              <span className="sm:hidden">Pesan WA</span>
+              <span className="hidden sm:inline">Pesan lewat WhatsApp</span>
             </button>
           </div>
         </div>
       )}
 
-      {/* MODAL FORM PEMESANAN WHATSAPP */}
+      {/* MODAL FORM PEMESANAN WHATSAPP (BOTTOM SHEET DI MOBILE) */}
       {checkoutOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-2xl border border-[#ddd3c2] bg-[#fffdf9] p-6">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4">
+          <div className="max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-t-2xl border border-[#ddd3c2] bg-[#fffdf9] p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] sm:rounded-2xl sm:p-6">
+            <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-[#ddd3c2] sm:hidden" />
             {orderSuccess ? (
               <div className="space-y-4">
                 <div className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#eefaf8] text-[#167a6f]">
                   <Check className="h-5 w-5" />
                 </div>
                 <h3 className="text-lg text-[#0a0a0a]">
-                  Pesanan Tercatat ({orderSuccess.invoice_code})
+                  Pesanan Siap Dikirim ({orderSuccess.invoice_code})
                 </h3>
                 <p className="text-xs leading-relaxed text-[#57534a]">
-                  Pesanan Anda telah masuk ke daftar tunggu toko{" "}
-                  {store.store_name}. Silakan lanjutkan pengiriman pesan di
-                  WhatsApp agar pemilik toko segera menyiapkan barang Anda.
+                  Daftar belanja Anda sudah tercatat di toko {store.store_name}.
+                  Silakan lanjutkan kirim chat di WhatsApp agar pemilik toko
+                  menyiapkan barang Anda.
                 </p>
                 <div className="flex flex-col gap-2 pt-2">
                   <a
@@ -424,12 +560,12 @@ export default function PublicStoreCatalogPage() {
                     }}
                     className="rounded-full border border-[#ddd3c2] px-5 py-2 text-xs text-[#57534a]"
                   >
-                    Tutup Jendela
+                    Tutup
                   </button>
                 </div>
               </div>
             ) : (
-              <form onSubmit={handleSendWaOrder} className="space-y-4">
+              <form onSubmit={handleSendWaOrder} className="space-y-3.5">
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg text-[#0a0a0a]">
                     Kirim Pesanan ke WhatsApp Toko
@@ -458,7 +594,7 @@ export default function PublicStoreCatalogPage() {
                     </div>
                   ))}
                   <div className="mt-2 flex items-center justify-between border-t border-[#ddd3c2] pt-2 text-sm text-[#0a0a0a]">
-                    <span>Total Estimasi</span>
+                    <span>Total Belanja</span>
                     <span className="tabular-nums">{fmtRp(totalAmount)}</span>
                   </div>
                 </div>
@@ -469,51 +605,88 @@ export default function PublicStoreCatalogPage() {
                   </div>
                 )}
 
-                <div>
-                  <label className="mb-1 block text-xs text-[#0a0a0a]">
-                    Nama Lengkap Anda
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={customerName}
-                    onChange={(e) => setCustomerName(e.target.value)}
-                    placeholder="Contoh: Ibu Rina"
-                    className="op-input"
-                  />
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-1 block text-xs text-[#0a0a0a]">
+                      Nama Anda
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={customerName}
+                      onChange={(e) => setCustomerName(e.target.value)}
+                      placeholder="Contoh: Ibu Rina"
+                      className="op-input"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-xs text-[#0a0a0a]">
+                      Nomor WhatsApp Anda
+                    </label>
+                    <input
+                      type="tel"
+                      inputMode="tel"
+                      required
+                      value={customerWa}
+                      onChange={(e) => setCustomerWa(e.target.value)}
+                      placeholder="Contoh: 081298765432"
+                      className="op-input"
+                    />
+                  </div>
                 </div>
+
+                {store.modules_config?.enable_delivery_note && (
+                  <div>
+                    <label className="mb-1 block text-xs text-[#0a0a0a]">
+                      Cara Terima Barang
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setDeliveryMethod("AMBIL_SENDIRI")}
+                        className={`rounded-lg border py-2 text-xs ${
+                          deliveryMethod === "AMBIL_SENDIRI"
+                            ? "border-[#1a76d1] bg-[#eff6ff] text-[#1a76d1]"
+                            : "border-[#ddd3c2] bg-white text-[#57534a]"
+                        }`}
+                      >
+                        Ambil di Toko
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDeliveryMethod("DIANTAR")}
+                        className={`rounded-lg border py-2 text-xs ${
+                          deliveryMethod === "DIANTAR"
+                            ? "border-[#1a76d1] bg-[#eff6ff] text-[#1a76d1]"
+                            : "border-[#ddd3c2] bg-white text-[#57534a]"
+                        }`}
+                      >
+                        Minta Diantar
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 <div>
                   <label className="mb-1 block text-xs text-[#0a0a0a]">
-                    Nomor WhatsApp Anda
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={customerWa}
-                    onChange={(e) => setCustomerWa(e.target.value)}
-                    placeholder="Contoh: 081298765432"
-                    className="op-input"
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-1 block text-xs text-[#0a0a0a]">
-                    Catatan Pesanan (Alamat / Jam Ambil)
+                    {deliveryMethod === "DIANTAR"
+                      ? "Alamat Lengkap Pengantaran & Catatan"
+                      : "Catatan Pesanan (Jam Ambil / Keterangan)"}
                   </label>
                   <textarea
                     rows={2}
+                    required={deliveryMethod === "DIANTAR"}
                     value={customerNote}
                     onChange={(e) => setCustomerNote(e.target.value)}
-                    placeholder="Contoh: Diantar ke Jl. Mawar No. 8 atau diambil sore jam 4"
+                    placeholder={
+                      deliveryMethod === "DIANTAR"
+                        ? "Tulis alamat lengkap rumah / patokan pengantaran..."
+                        : "Contoh: Saya ambil sore jam 4 pulang kerja"
+                    }
                     className="op-textarea"
                   />
                 </div>
-
-                <p className="text-[11px] leading-relaxed text-[#57534a]">
-                  Stok toko baru akan dikurangi setelah pemilik toko
-                  mengonfirmasi pesanan dan pembayaran Anda di WhatsApp.
-                </p>
 
                 <button
                   type="submit"
@@ -521,8 +694,8 @@ export default function PublicStoreCatalogPage() {
                   className="w-full rounded-full bg-[#1a76d1] py-2.5 text-sm text-white transition-colors hover:bg-[#1565c0]"
                 >
                   {submitting
-                    ? "Menyusun Format Chat..."
-                    : "Pesan via WhatsApp"}
+                    ? "Menyusun Pesanan..."
+                    : `Pesan lewat WhatsApp (${fmtRp(totalAmount)})`}
                 </button>
               </form>
             )}

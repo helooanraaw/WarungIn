@@ -18,7 +18,9 @@ export function fmtDate(dateInput: string | Date | null | undefined): string {
   });
 }
 
-export function fmtDateTime(dateInput: string | Date | null | undefined): string {
+export function fmtDateTime(
+  dateInput: string | Date | null | undefined
+): string {
   if (!dateInput) return "-";
   const d = typeof dateInput === "string" ? new Date(dateInput) : dateInput;
   if (isNaN(d.getTime())) return String(dateInput);
@@ -29,6 +31,51 @@ export function fmtDateTime(dateInput: string | Date | null | undefined): string
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+export function getExpiryStatus(expiryDate: string | null | undefined): {
+  status: "EXPIRED" | "EXPIRING_SOON" | "SAFE" | "NONE";
+  daysLeft: number | null;
+  label: string;
+} {
+  if (!expiryDate || !expiryDate.trim()) {
+    return { status: "NONE", daysLeft: null, label: "-" };
+  }
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const exp = new Date(expiryDate + "T00:00:00");
+  if (isNaN(exp.getTime())) {
+    return { status: "NONE", daysLeft: null, label: expiryDate };
+  }
+  const diffMs = exp.getTime() - today.getTime();
+  const daysLeft = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+  if (daysLeft < 0) {
+    return {
+      status: "EXPIRED",
+      daysLeft,
+      label: `Sudah EXP (${Math.abs(daysLeft)} hari lalu)`,
+    };
+  }
+  if (daysLeft === 0) {
+    return {
+      status: "EXPIRED",
+      daysLeft: 0,
+      label: "EXP Hari Ini",
+    };
+  }
+  if (daysLeft <= 14) {
+    return {
+      status: "EXPIRING_SOON",
+      daysLeft,
+      label: `Hampir EXP (${daysLeft} hari lagi)`,
+    };
+  }
+  return {
+    status: "SAFE",
+    daysLeft,
+    label: expiryDate,
+  };
 }
 
 export function sanitizeWaNumber(raw: string): string {
@@ -73,9 +120,9 @@ export function generateWhatsAppOrderLink(params: {
   const itemLines = params.items
     .map(
       (item, idx) =>
-        `${idx + 1}. ${item.name} (${item.qty}x @ ${fmtRp(item.price)}) = ${fmtRp(
-          item.qty * item.price
-        )}`
+        `${idx + 1}. ${item.name} (${item.qty}x @ ${fmtRp(
+          item.price
+        )}) = ${fmtRp(item.qty * item.price)}`
     )
     .join("\n");
 
@@ -104,4 +151,87 @@ export function generateWhatsAppOrderLink(params: {
 
   const encoded = encodeURIComponent(lines.join("\n"));
   return `https://wa.me/${cleanPhone}?text=${encoded}`;
+}
+
+export function generateWhatsAppReceiptLink(params: {
+  customerWa: string;
+  storeName: string;
+  invoiceCode: string;
+  createdAt: string;
+  paymentMethod: string;
+  customerName: string;
+  shiftName?: string | null;
+  isDebtPaid?: boolean;
+  customerNote?: string | null;
+  items: {
+    product_name: string;
+    qty: number;
+    unit_price: number;
+    normal_price?: number;
+    subtotal: number;
+  }[];
+  discountTotal?: number;
+  totalAmount: number;
+  cashReceived?: number | null;
+  changeAmount?: number | null;
+  receiptFooter?: string;
+}): string {
+  const cleanPhone = sanitizeWaNumber(params.customerWa);
+  const itemLines = params.items
+    .map((item, idx) => {
+      const isWholesale =
+        item.normal_price && item.normal_price > item.unit_price;
+      return `${idx + 1}. ${item.product_name}\n   ${item.qty} x ${fmtRp(
+        item.unit_price
+      )}${isWholesale ? " (Grosir)" : ""} = ${fmtRp(item.subtotal)}`;
+    })
+    .join("\n");
+
+  const lines = [
+    `*STRUK PEMBELIAN - ${params.storeName.toUpperCase()}*`,
+    `--------------------------------`,
+    `No. Nota: ${params.invoiceCode}`,
+    `Waktu: ${fmtDateTime(params.createdAt)}`,
+    `Pelanggan: ${params.customerName || "Pembeli Umum"}`,
+  ];
+
+  if (params.shiftName) {
+    lines.push(`Shift Kasir: ${params.shiftName}`);
+  }
+
+  lines.push(`--------------------------------`, itemLines, `--------------------------------`);
+
+  if (params.discountTotal && params.discountTotal > 0) {
+    lines.push(`Hemat Harga Grosir: -${fmtRp(params.discountTotal)}`);
+  }
+
+  lines.push(
+    `*TOTAL TAGIHAN: ${fmtRp(params.totalAmount)}*`,
+    `Metode Bayar: ${params.paymentMethod}`
+  );
+
+  if (params.paymentMethod === "TUNAI" && params.cashReceived) {
+    lines.push(
+      `Tunai Diterima: ${fmtRp(params.cashReceived)}`,
+      `Uang Kembalian: ${fmtRp(params.changeAmount || 0)}`
+    );
+  }
+
+  if (params.paymentMethod === "KASBON") {
+    lines.push(
+      `Status Kasbon: ${params.isDebtPaid ? "LUNAS" : "BELUM LUNAS"}`
+    );
+    if (params.customerNote) {
+      lines.push(`Catatan Tempo: ${params.customerNote}`);
+    }
+  }
+
+  lines.push(
+    `--------------------------------`,
+    params.receiptFooter || `Terima kasih telah berbelanja di ${params.storeName}.`
+  );
+
+  return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(
+    lines.join("\n")
+  )}`;
 }

@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
 import { MICRO_RET_QUOTAS } from "@/lib/quotas";
+import { getExpiryStatus } from "@/lib/format";
+
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
@@ -40,18 +43,50 @@ export async function GET() {
       return d === todayStr;
     });
 
-    // Jika transaksi sampel berada di tanggal berbeda, gunakan seluruh COMPLETED untuk ringkasan demo jika hari ini 0
-    const activeSet =
-      todayCompleted.length > 0 ? todayCompleted : completedTransactions;
-
-    const omzetHariIni = activeSet.reduce((acc, t) => acc + t.total_amount, 0);
-    const transaksiHariIni = activeSet.length;
+    const omzetHariIni = todayCompleted.reduce(
+      (acc, t) => acc + t.total_amount,
+      0
+    );
+    const transaksiHariIni = todayCompleted.length;
 
     const lowStockProducts = products.filter((p) => p.stock_qty <= threshold);
     const pendingWaOrders = transactions.filter(
       (t) =>
         t.channel === "WHATSAPP_ONLINE" && t.status === "PENDING_CONFIRMATION"
     );
+
+    // Filter barang yang sudah atau hampir kedaluwarsa (EXP <= 14 hari)
+    const expiringProducts = config?.enable_expiry_tracking
+      ? products
+          .map((p) => {
+            const expInfo = getExpiryStatus(p.expiry_date);
+            return {
+              ...p,
+              expStatus: expInfo.status,
+              daysLeft: expInfo.daysLeft,
+              expLabel: expInfo.label,
+            };
+          })
+          .filter(
+            (p) =>
+              p.expStatus === "EXPIRED" || p.expStatus === "EXPIRING_SOON"
+          )
+          .sort((a, b) => (a.daysLeft ?? 999) - (b.daysLeft ?? 999))
+      : [];
+
+    // Rekap per Shift Kasir hari ini jika modul shift aktif
+    const shiftSummary = config?.enable_shift_log
+      ? ["Pagi", "Sore", "Malam"].map((shift) => {
+          const list = todayCompleted.filter(
+            (t) => (t.shift_name || "Pagi") === shift
+          );
+          return {
+            shift,
+            count: list.length,
+            revenue: list.reduce((s, t) => s + t.total_amount, 0),
+          };
+        })
+      : [];
 
     // Hitung produk terlaris dari item transaksi COMPLETED
     const soldMap = new Map<
@@ -83,6 +118,7 @@ export async function GET() {
     );
 
     return NextResponse.json({
+      ownerName: user.name,
       store,
       config,
       quotas: MICRO_RET_QUOTAS,
@@ -92,6 +128,7 @@ export async function GET() {
         stokMenipisCount: lowStockProducts.length,
         pesananWaMenungguCount: pendingWaOrders.length,
         totalProductsCount: products.length,
+        expiringCount: expiringProducts.length,
         unpaidDebtTotal: unpaidDebts.reduce((s, t) => s + t.total_amount, 0),
         unpaidDebtCount: unpaidDebts.length,
       },
@@ -101,6 +138,8 @@ export async function GET() {
       ),
       topProducts,
       lowStockProducts,
+      expiringProducts,
+      shiftSummary,
       pendingWaOrders,
       unpaidDebts,
     });

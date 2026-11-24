@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { setSessionUser } from "@/lib/auth";
+import { setSessionUser, verifyPassword } from "@/lib/auth";
 
 export async function POST(req: Request) {
   try {
@@ -24,7 +24,7 @@ export async function POST(req: Request) {
       },
     });
 
-    if (!user || user.password_hash !== password) {
+    if (!user || !verifyPassword(password, user.password_hash)) {
       return NextResponse.json(
         { error: "Email atau kata sandi tidak sesuai." },
         { status: 401 }
@@ -36,6 +36,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       user: {
         id: user.id,
+        name: user.name,
         email: user.email,
         role: user.role,
         hasStore: Boolean(user.store),

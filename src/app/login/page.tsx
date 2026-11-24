@@ -3,25 +3,8 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Store } from "lucide-react";
-
-const DEMO_STORES = [
-  {
-    name: "Toko Sembako Berkah Jaya",
-    email: "berkah@demo.warungin.id",
-    desc: "Contoh warung sembako dengan fitur tanggal kedaluwarsa, harga grosir, dan buku kasbon.",
-  },
-  {
-    name: "Butik Nusantara Wear",
-    email: "nusantara@demo.warungin.id",
-    desc: "Contoh toko pakaian dengan fitur ukuran/warna baju dan pembagian shift kasir.",
-  },
-  {
-    name: "Toko Bahan Kue Manis",
-    email: "kuemanis@demo.warungin.id",
-    desc: "Contoh toko bahan kue dengan fitur tanggal kedaluwarsa, harga grosir, dan shift kasir.",
-  },
-];
+import { ArrowLeft } from "lucide-react";
+import BrandLogo from "@/components/BrandLogo";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -53,138 +36,82 @@ export default function LoginPage() {
     }
   }
 
-  async function handleDemoLogin(demoEmail: string) {
-    setError("");
-    setLoading(true);
-    try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: demoEmail, password: "demo123" }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error || "Gagal membuka akun contoh.");
-      } else {
-        router.push("/dashboard");
-      }
-    } catch {
-      setError("Gagal menghubungi server.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
   return (
-    <div className="min-h-screen bg-[#f4f7fa] px-4 py-10 text-[#22303c]">
-      <div className="mx-auto max-w-4xl">
-        <div className="mb-6 flex items-center justify-between">
+    <div className="min-h-[100dvh] bg-[#f4f7fa] px-4 py-6 pb-[calc(2rem+env(safe-area-inset-bottom))] text-[#22303c] sm:py-10">
+      <div className="mx-auto max-w-md">
+        <div className="mb-5 flex items-center justify-between sm:mb-6">
           <Link
             href="/"
-            className="inline-flex items-center gap-2 text-xs text-[#5f6f82] hover:text-[#22303c]"
+            className="inline-flex min-h-[44px] items-center gap-2 text-xs text-[#5f6f82] hover:text-[#22303c] sm:min-h-0"
           >
             <ArrowLeft className="h-4 w-4" />
-            <span>Kembali ke Halaman Utama</span>
+            <span>Beranda</span>
           </Link>
-          <span className="text-xs text-[#5f6f82]">Warungin Backoffice</span>
+          <span className="inline-flex items-center gap-2 text-xs text-[#22303c]">
+            <BrandLogo size={20} variant="color" />
+            <span>Warungin</span>
+          </span>
         </div>
 
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-12">
-          {/* FORM MASUK */}
-          <div className="op-card p-6 md:col-span-6">
-            <h1 className="text-xl text-[#22303c]">Masuk ke Akun Toko</h1>
-            <p className="mt-1.5 text-xs leading-relaxed text-[#5f6f82]">
-              Masukkan email dan kata sandi Anda, atau pilih salah satu akun
-              contoh di samping untuk langsung melihat cara kerja sistem.
-            </p>
+        <div className="op-card p-5 sm:p-6">
+          <h1 className="text-xl text-[#22303c]">Masuk ke Toko Anda</h1>
+          <p className="mt-1.5 text-xs leading-relaxed text-[#5f6f82]">
+            Masukkan email dan kata sandi untuk membuka halaman kasir dan
+            pengelolaan stok toko Anda.
+          </p>
 
-            {error && (
-              <div className="mt-4 rounded-[5px] border border-[#f3c2be] bg-[#fdf2f2] px-3 py-2 text-xs text-[#c0392b]">
-                {error}
-              </div>
-            )}
-
-            <form onSubmit={handleLogin} className="mt-5 space-y-4">
-              <div>
-                <label className="mb-1.5 block text-xs text-[#22303c]">
-                  Alamat Email
-                </label>
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="nama@tokoanda.com"
-                  className="op-input"
-                />
-              </div>
-
-              <div>
-                <label className="mb-1.5 block text-xs text-[#22303c]">
-                  Kata Sandi
-                </label>
-                <input
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Masukkan kata sandi"
-                  className="op-input"
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="op-btn op-btn-primary w-full"
-              >
-                {loading ? "Memproses..." : "Masuk ke Dashboard"}
-              </button>
-            </form>
-
-            <div className="mt-5 border-t border-[#d8e1ea] pt-4 text-xs text-[#5f6f82]">
-              Belum punya akun toko?{" "}
-              <Link href="/register" className="text-[#1976d2] hover:underline">
-                Daftar Toko Baru
-              </Link>
+          {error && (
+            <div className="mt-4 rounded-[5px] border border-[#f3c2be] bg-[#fdf2f2] px-3 py-2 text-xs text-[#c0392b]">
+              {error}
             </div>
-          </div>
+          )}
 
-          {/* 3 AKUN CONTOH INSTAN */}
-          <div className="op-card p-6 md:col-span-6">
-            <div className="flex items-center gap-2 text-sm text-[#22303c]">
-              <Store className="h-4 w-4 text-[#1976d2]" />
-              <span>Coba Instan dengan Akun Contoh</span>
+          <form onSubmit={handleLogin} className="mt-5 space-y-4">
+            <div>
+              <label className="mb-1.5 block text-xs text-[#22303c]">
+                Alamat Email
+              </label>
+              <input
+                type="email"
+                inputMode="email"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="nama@tokoanda.com"
+                className="op-input"
+              />
             </div>
-            <p className="mt-1 text-xs leading-relaxed text-[#5f6f82]">
-              Klik salah satu toko di bawah ini untuk masuk tanpa mengetik kata
-              sandi. Setiap toko menampilkan modul ERP yang berbeda sesuai jenis
-              usahanya.
-            </p>
 
-            <div className="mt-4 space-y-3">
-              {DEMO_STORES.map((demo) => (
-                <div
-                  key={demo.email}
-                  className="rounded-[5px] border border-[#d8e1ea] bg-[#f8fafc] p-3.5"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-sm text-[#22303c]">{demo.name}</span>
-                    <button
-                      type="button"
-                      disabled={loading}
-                      onClick={() => handleDemoLogin(demo.email)}
-                      className="op-btn op-btn-primary op-btn-sm"
-                    >
-                      Masuk Instan
-                    </button>
-                  </div>
-                  <p className="mt-1.5 text-xs leading-relaxed text-[#5f6f82]">
-                    {demo.desc}
-                  </p>
-                </div>
-              ))}
+            <div>
+              <label className="mb-1.5 block text-xs text-[#22303c]">
+                Kata Sandi
+              </label>
+              <input
+                type="password"
+                autoComplete="current-password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Masukkan kata sandi"
+                className="op-input"
+              />
             </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="op-btn op-btn-primary w-full"
+            >
+              {loading ? "Memproses..." : "Masuk ke Dashboard"}
+            </button>
+          </form>
+
+          <div className="mt-5 border-t border-[#d8e1ea] pt-4 text-xs text-[#5f6f82]">
+            Belum punya akun toko?{" "}
+            <Link href="/register" className="text-[#1976d2] hover:underline">
+              Buat toko pertama sekarang
+            </Link>
           </div>
         </div>
       </div>

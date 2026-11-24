@@ -2,6 +2,12 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
+function daysFromNow(days: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
 async function main() {
   console.log("Memulai proses seeding database Warungin...");
 
@@ -17,6 +23,7 @@ async function main() {
   // ==========================================
   const user1 = await prisma.user.create({
     data: {
+      name: "H. Ahmad Fauzi",
       email: "berkah@demo.warungin.id",
       password_hash: "demo123",
       role: "OWNER",
@@ -30,25 +37,31 @@ async function main() {
       slug: "berkah-jaya",
       category: "Toko Kelontong / Warung Sembako",
       description:
-        "Menyediakan kebutuhan pokok harian, beras, minyak goreng, gula, mie instan, dan sembako harga ecer maupun grosir.",
+        "Menjual kebutuhan pokok harian seperti beras, minyak goreng, gula, telur, susu UHT, mie instan, dan kopi dengan harga eceran maupun grosir per dus.",
       is_online_enabled: true,
       whatsapp_number: "6281234567801",
       account_holder_name: "H. Ahmad Fauzi",
       onboarding_attempts: 1,
       modules_config: {
         create: {
+          dashboard_template: "SEMBAKO_GROSIR",
+          template_label: "Template Warung Sembako, Grosir & Pantauan EXP",
           enable_expiry_tracking: true,
           enable_variant_matrix: false,
           enable_wholesale_tier: true,
           enable_shift_log: false,
           enable_debt_book: true,
           low_stock_threshold: 10,
+          receipt_footer:
+            "Terima kasih telah berbelanja di Toko Sembako Berkah Jaya. Melayani pesan antar sekitar komplek via WhatsApp.",
           ai_summary_reason:
-            "Diaktifkan modul Pelacakan Kedaluwarsa, Harga Grosir Bertingkat, dan Buku Kasbon karena toko sembako mengelola produk makanan/minuman berbatas tanggal simpan, melayani pembelian dus/partai, serta memiliki pelanggan tetangga tetap.",
+            "Berdasarkan deskripsi usaha warung sembako yang menjual bahan pangan harian serta melayani pembelian ecer/dus dan langganan tetangga, AI merakit Template Warung Sembako & Grosir dengan mengaktifkan modul Tanggal Kedaluwarsa (EXP), Harga Grosir Bertingkat, dan Buku Kasbon.",
           raw_onboarding_json: JSON.stringify({
-            q1: "Ya, banyak produk susu, roti, dan bumbu yang ada tanggal kedaluwarsanya.",
-            q2: "Kami jual eceran dan grosir (beli minimal 6 atau 12 lebih murah).",
-            q3: "Sering ada tetangga langganan yang ambil barang dulu dan bayar mingguan.",
+            retail_needs:
+              "Jual sembako, susu, telur, dan mie instan. Butuh pantau tanggal expired susu/roti, harga grosir kalau beli banyak, dan catatan kasbon tetangga.",
+            q3: "EXPIRY_FOCUS",
+            q4: "WHOLESALE_ONLY",
+            q5: "DEBT_ON_10",
           }),
         },
       },
@@ -68,7 +81,7 @@ async function main() {
         wholesale_min_qty: 5,
         stock_qty: 28,
         is_online: true,
-        expiry_date: "2027-02-15",
+        expiry_date: daysFromNow(120),
       },
     }),
     prisma.product.create({
@@ -83,7 +96,7 @@ async function main() {
         wholesale_min_qty: 6,
         stock_qty: 42,
         is_online: true,
-        expiry_date: "2027-05-10",
+        expiry_date: daysFromNow(180),
       },
     }),
     prisma.product.create({
@@ -96,9 +109,9 @@ async function main() {
         sell_price: 17500,
         wholesale_price: 16800,
         wholesale_min_qty: 10,
-        stock_qty: 8, // Stok menipis (< 10)
+        stock_qty: 8,
         is_online: true,
-        expiry_date: "2027-08-01",
+        expiry_date: daysFromNow(240),
       },
     }),
     prisma.product.create({
@@ -111,9 +124,9 @@ async function main() {
         sell_price: 28500,
         wholesale_price: 27000,
         wholesale_min_qty: 5,
-        stock_qty: 6, // Stok menipis
+        stock_qty: 6,
         is_online: true,
-        expiry_date: "2026-11-04",
+        expiry_date: daysFromNow(9), // Hampir EXP (<= 14 hari)
       },
     }),
     prisma.product.create({
@@ -128,7 +141,7 @@ async function main() {
         wholesale_min_qty: 8,
         stock_qty: 50,
         is_online: true,
-        expiry_date: "2027-01-20",
+        expiry_date: daysFromNow(90),
       },
     }),
     prisma.product.create({
@@ -141,9 +154,9 @@ async function main() {
         sell_price: 19500,
         wholesale_price: 18200,
         wholesale_min_qty: 6,
-        stock_qty: 5, // Stok menipis & mendekati expired
+        stock_qty: 5,
         is_online: true,
-        expiry_date: "2026-11-02",
+        expiry_date: daysFromNow(5), // Hampir EXP (<= 14 hari)
       },
     }),
     prisma.product.create({
@@ -158,7 +171,7 @@ async function main() {
         wholesale_min_qty: 10,
         stock_qty: 34,
         is_online: true,
-        expiry_date: "2027-06-12",
+        expiry_date: daysFromNow(150),
       },
     }),
     prisma.product.create({
@@ -170,7 +183,7 @@ async function main() {
         cost_price: 18000,
         sell_price: 21000,
         stock_qty: 12,
-        is_online: false, // Offline only
+        is_online: false,
       },
     }),
   ]);
@@ -185,7 +198,10 @@ async function main() {
       payment_method: "TUNAI",
       customer_name: "Pembeli Umum",
       is_debt_paid: true,
+      discount_total: 0,
       total_amount: 142000,
+      cash_received: 150000,
+      change_amount: 8000,
       confirmed_at: new Date(),
       items: {
         create: [
@@ -193,6 +209,7 @@ async function main() {
             product_id: s1Products[0].id,
             product_name: s1Products[0].name,
             unit_price: 72000,
+            normal_price: 72000,
             qty: 1,
             subtotal: 72000,
           },
@@ -200,6 +217,7 @@ async function main() {
             product_id: s1Products[1].id,
             product_name: s1Products[1].name,
             unit_price: 35000,
+            normal_price: 35000,
             qty: 2,
             subtotal: 70000,
           },
@@ -219,6 +237,7 @@ async function main() {
       customer_wa: "081398765432",
       customer_note: "Bayar hari Sabtu pagi",
       is_debt_paid: false,
+      discount_total: 0,
       total_amount: 63500,
       confirmed_at: new Date(),
       items: {
@@ -227,6 +246,7 @@ async function main() {
             product_id: s1Products[2].id,
             product_name: s1Products[2].name,
             unit_price: 17500,
+            normal_price: 17500,
             qty: 2,
             subtotal: 35000,
           },
@@ -234,6 +254,7 @@ async function main() {
             product_id: s1Products[3].id,
             product_name: s1Products[3].name,
             unit_price: 28500,
+            normal_price: 28500,
             qty: 1,
             subtotal: 28500,
           },
@@ -253,6 +274,7 @@ async function main() {
       customer_wa: "081288990011",
       customer_note: "Tolong diantar ke Jl. Melati No. 12 sore ini ya Pak.",
       is_debt_paid: true,
+      discount_total: 0,
       total_amount: 173000,
       items: {
         create: [
@@ -260,6 +282,7 @@ async function main() {
             product_id: s1Products[0].id,
             product_name: s1Products[0].name,
             unit_price: 72000,
+            normal_price: 72000,
             qty: 2,
             subtotal: 144000,
           },
@@ -267,6 +290,7 @@ async function main() {
             product_id: s1Products[6].id,
             product_name: s1Products[6].name,
             unit_price: 14500,
+            normal_price: 14500,
             qty: 2,
             subtotal: 29000,
           },
@@ -286,6 +310,7 @@ async function main() {
       customer_wa: "085711223344",
       customer_note: "Saya ambil sendiri jam 5 sore sepulang kerja.",
       is_debt_paid: true,
+      discount_total: 0,
       total_amount: 86500,
       items: {
         create: [
@@ -293,6 +318,7 @@ async function main() {
             product_id: s1Products[1].id,
             product_name: s1Products[1].name,
             unit_price: 35000,
+            normal_price: 35000,
             qty: 1,
             subtotal: 35000,
           },
@@ -300,6 +326,7 @@ async function main() {
             product_id: s1Products[4].id,
             product_name: s1Products[4].name,
             unit_price: 15500,
+            normal_price: 15500,
             qty: 2,
             subtotal: 31000,
           },
@@ -307,6 +334,7 @@ async function main() {
             product_id: s1Products[5].id,
             product_name: s1Products[5].name,
             unit_price: 19500,
+            normal_price: 19500,
             qty: 1,
             subtotal: 19500,
           },
@@ -320,6 +348,7 @@ async function main() {
   // ==========================================
   const user2 = await prisma.user.create({
     data: {
+      name: "Nadia Putri Larasati",
       email: "nusantara@demo.warungin.id",
       password_hash: "demo123",
       role: "OWNER",
@@ -333,25 +362,31 @@ async function main() {
       slug: "nusantara-wear",
       category: "Butik & Pakaian",
       description:
-        "Koleksi kemeja tenun, batik tulis kasual, blus kerja wanita, dan busana muslim harian dengan bahan katun sejuk.",
+        "Koleksi kemeja tenun, batik tulis kasual, blus kerja wanita, dan busana muslim harian dengan pilihan ukuran S, M, L, XL.",
       is_online_enabled: true,
       whatsapp_number: "6281234567802",
       account_holder_name: "Nadia Putri Larasati",
       onboarding_attempts: 1,
       modules_config: {
         create: {
+          dashboard_template: "BUTIK_VARIAN",
+          template_label: "Template Butik Pakaian, Matriks Varian & Shift Kasir",
           enable_expiry_tracking: false,
           enable_variant_matrix: true,
           enable_wholesale_tier: false,
           enable_shift_log: true,
           enable_debt_book: false,
           low_stock_threshold: 5,
+          receipt_footer:
+            "Terima kasih telah berbelanja di Butik Nusantara Wear. Penukaran ukuran maksimal 2 hari dengan menyertakan nota ini.",
           ai_summary_reason:
-            "Diaktifkan modul Matriks Varian (Ukuran/Warna) dan Pencatatan Shift Kasir untuk memisahkan stok ukuran pakaian (M/L/XL) serta memantau transaksi kasir pagi dan malam di butik.",
+            "Berdasarkan profil butik pakaian yang memiliki ragam ukuran (M/L/XL) dan warna serta dijaga oleh staf kasir bergantian, AI merakit Template Butik & Matriks Varian dengan modul Ukuran/Warna dan Log Shift Kasir.",
           raw_onboarding_json: JSON.stringify({
-            q1: "Setiap model baju punya varian ukuran S, M, L, XL dan warna.",
-            q2: "Ada 2 staf jaga toko yang bergantian shift pagi dan sore.",
-            q3: "Semua pembayaran lunas via QRIS, transfer, atau tunai.",
+            retail_needs:
+              "Jual pakaian batik dan tenun dengan ukuran M, L, XL dan warna berbeda. Ada karyawan jaga shift pagi dan sore.",
+            q3: "VARIANT_FOCUS",
+            q4: "SHIFT_ONLY",
+            q5: "NO_DEBT_5",
           }),
         },
       },
@@ -380,7 +415,7 @@ async function main() {
         unit: "pcs",
         cost_price: 110000,
         sell_price: 165000,
-        stock_qty: 3, // Stok menipis (< 5)
+        stock_qty: 3,
         is_online: true,
         variant_label: "Ukuran XL - Cokelat Sogan",
       },
@@ -406,7 +441,7 @@ async function main() {
         unit: "pcs",
         cost_price: 98000,
         sell_price: 149000,
-        stock_qty: 4, // Stok menipis (< 5)
+        stock_qty: 4,
         is_online: true,
         variant_label: "All Size - Putih Gading",
       },
@@ -449,7 +484,10 @@ async function main() {
       customer_name: "Kak Rina",
       shift_name: "Pagi",
       is_debt_paid: true,
+      discount_total: 0,
       total_amount: 354000,
+      cash_received: 354000,
+      change_amount: 0,
       confirmed_at: new Date(),
       items: {
         create: [
@@ -457,6 +495,7 @@ async function main() {
             product_id: s2Products[0].id,
             product_name: `${s2Products[0].name} (${s2Products[0].variant_label})`,
             unit_price: 165000,
+            normal_price: 165000,
             qty: 1,
             subtotal: 165000,
           },
@@ -464,6 +503,7 @@ async function main() {
             product_id: s2Products[2].id,
             product_name: `${s2Products[2].name} (${s2Products[2].variant_label})`,
             unit_price: 189000,
+            normal_price: 189000,
             qty: 1,
             subtotal: 189000,
           },
@@ -481,8 +521,10 @@ async function main() {
       payment_method: "TRANSFER",
       customer_name: "Dian Sastroamidjojo",
       customer_wa: "081122334455",
-      customer_note: "Mohon dicek jahitan kancing sebelum dikirim via kurir instan.",
+      customer_note:
+        "Mohon dicek jahitan kancing sebelum dikirim via kurir instan.",
       is_debt_paid: true,
+      discount_total: 0,
       total_amount: 217000,
       items: {
         create: [
@@ -490,6 +532,7 @@ async function main() {
             product_id: s2Products[3].id,
             product_name: `${s2Products[3].name} (${s2Products[3].variant_label})`,
             unit_price: 149000,
+            normal_price: 149000,
             qty: 1,
             subtotal: 149000,
           },
@@ -497,6 +540,7 @@ async function main() {
             product_id: s2Products[5].id,
             product_name: `${s2Products[5].name} (${s2Products[5].variant_label})`,
             unit_price: 68000,
+            normal_price: 68000,
             qty: 1,
             subtotal: 68000,
           },
@@ -510,6 +554,7 @@ async function main() {
   // ==========================================
   const user3 = await prisma.user.create({
     data: {
+      name: "Chef Liana Wijaya",
       email: "kuemanis@demo.warungin.id",
       password_hash: "demo123",
       role: "OWNER",
@@ -523,25 +568,31 @@ async function main() {
       slug: "kue-manis",
       category: "Toko Bahan Kue & Roti",
       description:
-        "Pusat bahan baking lengkap: tepung terigu protein tinggi, mentega wisman/anchor, cokelat batang, keju, dan kemasan kotak kue.",
+        "Pusat bahan baking lengkap: tepung terigu protein tinggi, mentega butter, cokelat batang, keju, ragi, dan kemasan kotak kue.",
       is_online_enabled: true,
       whatsapp_number: "6281234567803",
       account_holder_name: "Chef Liana Wijaya",
       onboarding_attempts: 1,
       modules_config: {
         create: {
+          dashboard_template: "MAKANAN_EXPIRY",
+          template_label: "Template Toko Bahan Kue, Pantauan EXP & Grosir",
           enable_expiry_tracking: true,
           enable_variant_matrix: false,
           enable_wholesale_tier: true,
           enable_shift_log: true,
           enable_debt_book: false,
           low_stock_threshold: 8,
+          receipt_footer:
+            "Terima kasih telah berbelanja di Toko Bahan Kue Manis. Simpan produk butter, keju, dan ragi di tempat sejuk.",
           ai_summary_reason:
-            "Diaktifkan modul Pelacakan Kedaluwarsa, Harga Grosir Bertingkat, dan Shift Kasir karena bahan kue seperti ragi, keju, dan butter sensitif terhadap masa kedaluwarsa serta sering dibeli partai oleh usaha bakery rumahan.",
+            "Berdasarkan deskripsi toko bahan kue yang mengelola bahan sensitif tanggal simpan (butter, keju, ragi) serta melayani pembelian grosir oleh usaha bakery rumahan dalam 2 shift kasir, AI merakit Template Toko Bahan Kue & Pantauan EXP.",
           raw_onboarding_json: JSON.stringify({
-            q1: "Keju, mentega, ragi, dan whipping cream wajib dipantau tanggal kedaluwarsanya.",
-            q2: "Banyak pelanggan UMKM kue yang beli kartonan dengan harga grosir.",
-            q3: "Toko buka dari jam 7 pagi sampai 8 malam dengan 2 shift kasir.",
+            retail_needs:
+              "Jual tepung, butter, keju, ragi yang wajib dipantau ketat tanggal expired-nya. Banyak pembeli bakery beli grosir dan toko buka 2 shift.",
+            q3: "EXPIRY_FOCUS",
+            q4: "WHOLESALE_AND_SHIFT",
+            q5: "NO_DEBT_10",
           }),
         },
       },
@@ -561,7 +612,7 @@ async function main() {
         wholesale_min_qty: 10,
         stock_qty: 40,
         is_online: true,
-        expiry_date: "2027-03-15",
+        expiry_date: daysFromNow(110),
       },
     }),
     prisma.product.create({
@@ -576,7 +627,7 @@ async function main() {
         wholesale_min_qty: 6,
         stock_qty: 22,
         is_online: true,
-        expiry_date: "2027-04-30",
+        expiry_date: daysFromNow(140),
       },
     }),
     prisma.product.create({
@@ -589,9 +640,9 @@ async function main() {
         sell_price: 53000,
         wholesale_price: 50000,
         wholesale_min_qty: 5,
-        stock_qty: 6, // Stok menipis (< 8)
+        stock_qty: 6,
         is_online: true,
-        expiry_date: "2026-11-05",
+        expiry_date: daysFromNow(7), // Hampir EXP (<= 14 hari)
       },
     }),
     prisma.product.create({
@@ -606,7 +657,7 @@ async function main() {
         wholesale_min_qty: 8,
         stock_qty: 30,
         is_online: true,
-        expiry_date: "2027-02-20",
+        expiry_date: daysFromNow(95),
       },
     }),
     prisma.product.create({
@@ -619,9 +670,9 @@ async function main() {
         sell_price: 18000,
         wholesale_price: 16500,
         wholesale_min_qty: 10,
-        stock_qty: 5, // Stok menipis
+        stock_qty: 5,
         is_online: true,
-        expiry_date: "2026-11-10",
+        expiry_date: daysFromNow(11), // Hampir EXP (<= 14 hari)
       },
     }),
     prisma.product.create({
@@ -650,7 +701,10 @@ async function main() {
       customer_name: "Dapur Mama Nisa",
       shift_name: "Pagi",
       is_debt_paid: true,
+      discount_total: 10000,
       total_amount: 188000,
+      cash_received: 200000,
+      change_amount: 12000,
       confirmed_at: new Date(),
       items: {
         create: [
@@ -658,6 +712,7 @@ async function main() {
             product_id: s3Products[0].id,
             product_name: s3Products[0].name,
             unit_price: 14000,
+            normal_price: 15000,
             qty: 10,
             subtotal: 140000,
           },
@@ -665,6 +720,7 @@ async function main() {
             product_id: s3Products[1].id,
             product_name: s3Products[1].name,
             unit_price: 24000,
+            normal_price: 24000,
             qty: 2,
             subtotal: 48000,
           },
@@ -684,6 +740,7 @@ async function main() {
       customer_wa: "081900112233",
       customer_note: "Pesan untuk produksi besok pagi ya Ci.",
       is_debt_paid: true,
+      discount_total: 0,
       total_amount: 151000,
       items: {
         create: [
@@ -691,6 +748,7 @@ async function main() {
             product_id: s3Products[2].id,
             product_name: s3Products[2].name,
             unit_price: 53000,
+            normal_price: 53000,
             qty: 2,
             subtotal: 106000,
           },
@@ -698,6 +756,7 @@ async function main() {
             product_id: s3Products[3].id,
             product_name: s3Products[3].name,
             unit_price: 22500,
+            normal_price: 22500,
             qty: 2,
             subtotal: 45000,
           },
