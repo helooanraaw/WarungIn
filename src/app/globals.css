@@ -333,12 +333,26 @@ textarea:focus-visible {
   }
 }
 
+.print-only {
+  display: none;
+}
+
 @media print {
+  @page {
+    size: auto;
+    margin: 12mm;
+  }
+  body {
+    background: #ffffff !important;
+    color: #22303c !important;
+  }
   body * {
     visibility: hidden;
   }
   #printable-receipt,
-  #printable-receipt * {
+  #printable-receipt *,
+  #printable-finance-report,
+  #printable-finance-report * {
     visibility: visible;
   }
   #printable-receipt {
@@ -351,6 +365,22 @@ textarea:focus-visible {
     box-shadow: none !important;
     padding: 8px !important;
     background: #ffffff !important;
+  }
+  #printable-finance-report {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    max-width: 100%;
+    background: #ffffff !important;
+  }
+  #printable-finance-report .op-card {
+    box-shadow: none !important;
+    border-color: #cbd5e1 !important;
+    break-inside: avoid;
+  }
+  .print-only {
+    display: block !important;
   }
   .no-print {
     display: none !important;

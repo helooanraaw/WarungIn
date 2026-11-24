@@ -28,6 +28,8 @@ export default function StoreSettingsPage() {
   const [onboardingAttempts, setOnboardingAttempts] = useState(1);
 
   const [templateLabel, setTemplateLabel] = useState("");
+  const [dashboardFocus, setDashboardFocus] = useState("UMUM");
+  const [itemTerm, setItemTerm] = useState("Barang");
   const [customAttributeLabel, setCustomAttributeLabel] =
     useState("Ukuran / Pilihan");
   const [defaultUnit, setDefaultUnit] = useState("pcs");
@@ -38,6 +40,8 @@ export default function StoreSettingsPage() {
   const [enableShiftLog, setEnableShiftLog] = useState(false);
   const [enableDebtBook, setEnableDebtBook] = useState(false);
   const [enableDeliveryNote, setEnableDeliveryNote] = useState(true);
+  const [enableFinanceReport, setEnableFinanceReport] = useState(true);
+  const [enableExpenseTracker, setEnableExpenseTracker] = useState(false);
   const [lowStockThreshold, setLowStockThreshold] = useState("10");
   const [receiptFooter, setReceiptFooter] = useState("");
 
@@ -75,6 +79,8 @@ export default function StoreSettingsPage() {
         if (data.config) {
           const c = data.config;
           setTemplateLabel(c.template_label || "");
+          setDashboardFocus(c.dashboard_focus || "UMUM");
+          setItemTerm(c.item_term || "Barang");
           setCustomAttributeLabel(
             c.custom_attribute_label || "Ukuran / Pilihan"
           );
@@ -90,6 +96,12 @@ export default function StoreSettingsPage() {
               ? Boolean(c.enable_delivery_note)
               : true
           );
+          setEnableFinanceReport(
+            c.enable_finance_report !== undefined
+              ? Boolean(c.enable_finance_report)
+              : true
+          );
+          setEnableExpenseTracker(Boolean(c.enable_expense_tracker));
           setLowStockThreshold(String(c.low_stock_threshold ?? 10));
           setReceiptFooter(c.receipt_footer || "");
         }
@@ -160,6 +172,8 @@ export default function StoreSettingsPage() {
           whatsapp_number: whatsappNumber,
           account_holder_name: accountHolderName,
           custom_attribute_label: customAttributeLabel,
+          dashboard_focus: dashboardFocus,
+          item_term: itemTerm.trim() || "Barang",
           default_unit: defaultUnit,
           enable_expiry_tracking: enableExpiryTracking,
           enable_variant_matrix: enableVariantMatrix,
@@ -168,6 +182,8 @@ export default function StoreSettingsPage() {
           enable_shift_log: enableShiftLog,
           enable_debt_book: enableDebtBook,
           enable_delivery_note: enableDeliveryNote,
+          enable_finance_report: enableFinanceReport,
+          enable_expense_tracker: enableExpenseTracker,
           low_stock_threshold: Number(lowStockThreshold || 10),
           receipt_footer: receiptFooter,
         }),
@@ -177,6 +193,7 @@ export default function StoreSettingsPage() {
         setError(data.error || "Gagal menyimpan pengaturan.");
       } else {
         setSavedNotice(true);
+        window.dispatchEvent(new Event("warungin:store-updated"));
       }
     } catch {
       setError("Terjadi gangguan koneksi.");
@@ -484,10 +501,78 @@ export default function StoreSettingsPage() {
               )}
             </div>
 
+            {/* FOKUS TAMPILAN UTAMA & SEBUTAN DAGANGAN */}
+            <div className="grid grid-cols-1 gap-3 rounded-[5px] border border-[#bfdbfe] bg-[#eff6ff] p-3.5 sm:grid-cols-2">
+              <div>
+                <label className="mb-1 block text-xs text-[#22303c]">
+                  Fokus Tampilan Halaman Utama
+                </label>
+                <select
+                  value={dashboardFocus}
+                  onChange={(e) => setDashboardFocus(e.target.value)}
+                  className="op-select bg-white"
+                >
+                  <option value="UMUM">Seimbang (Kasir, Stok &amp; Keuangan)</option>
+                  <option value="KASIR_CEPAT">Kasir Cepat &amp; Transaksi Harian</option>
+                  <option value="STOK_GROSIR">Stok, Grosir &amp; Belanja Kulakan</option>
+                  <option value="KATALOG_ONLINE">Toko Online &amp; Pesanan WhatsApp</option>
+                  <option value="KEUANGAN_LABA">Rekap Keuangan, Pengeluaran &amp; Untung</option>
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs text-[#22303c]">
+                  Sebutan Barang Jualan Anda
+                </label>
+                <input
+                  type="text"
+                  value={itemTerm}
+                  onChange={(e) => setItemTerm(e.target.value)}
+                  placeholder="Barang / Menu / Kue / Pakaian / Obat"
+                  className="op-input bg-white"
+                />
+              </div>
+            </div>
+
             <label className="flex min-h-[52px] cursor-pointer items-center justify-between gap-3 rounded-[5px] border border-[#d8e1ea] p-3.5 hover:bg-[#f8fafc] sm:min-h-0 sm:p-3">
               <div>
                 <div className="text-xs text-[#22303c]">
-                  Pengingat Tanggal Kadaluarsa Barang
+                  Halaman Rekap Keuangan &amp; Simpan PDF
+                </div>
+                <div className="text-[11px] text-[#5f6f82]">
+                  Tampilkan menu Rekap Keuangan untuk melihat laba rugi dan
+                  menyimpan laporan dalam bentuk PDF
+                </div>
+              </div>
+              <input
+                type="checkbox"
+                checked={enableFinanceReport}
+                onChange={(e) => setEnableFinanceReport(e.target.checked)}
+                className="h-5 w-5 shrink-0 accent-[#1976d2] sm:h-4 sm:w-4"
+              />
+            </label>
+
+            <label className="flex min-h-[52px] cursor-pointer items-center justify-between gap-3 rounded-[5px] border border-[#d8e1ea] p-3.5 hover:bg-[#f8fafc] sm:min-h-0 sm:p-3">
+              <div>
+                <div className="text-xs text-[#22303c]">
+                  Catat Pengeluaran Usaha &amp; Belanja Kulakan
+                </div>
+                <div className="text-[11px] text-[#5f6f82]">
+                  Tampilkan form catat pengeluaran (kulakan, listrik, kemasan,
+                  ongkir) agar hitungan untung bersih akurat
+                </div>
+              </div>
+              <input
+                type="checkbox"
+                checked={enableExpenseTracker}
+                onChange={(e) => setEnableExpenseTracker(e.target.checked)}
+                className="h-5 w-5 shrink-0 accent-[#1976d2] sm:h-4 sm:w-4"
+              />
+            </label>
+
+            <label className="flex min-h-[52px] cursor-pointer items-center justify-between gap-3 rounded-[5px] border border-[#d8e1ea] p-3.5 hover:bg-[#f8fafc] sm:min-h-0 sm:p-3">
+              <div>
+                <div className="text-xs text-[#22303c]">
+                  Halaman Pantau Kedaluwarsa Barang
                 </div>
                 <div className="text-[11px] text-[#5f6f82]">
                   Cocok untuk makanan, minuman, kue, obat, kosmetik, atau pakan

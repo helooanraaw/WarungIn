@@ -72,6 +72,14 @@ export async function PUT(req: Request) {
         ? String(body.account_holder_name).trim()
         : store.account_holder_name;
 
+    const dashboard_focus =
+      body.dashboard_focus !== undefined
+        ? String(body.dashboard_focus).trim() || "UMUM"
+        : store.modules_config?.dashboard_focus || "UMUM";
+    const item_term =
+      body.item_term !== undefined
+        ? String(body.item_term).trim() || "Barang"
+        : store.modules_config?.item_term || "Barang";
     const custom_attribute_label =
       body.custom_attribute_label !== undefined
         ? String(body.custom_attribute_label).trim() || "Ukuran / Pilihan"
@@ -91,6 +99,14 @@ export async function PUT(req: Request) {
       body.enable_delivery_note !== undefined
         ? Boolean(body.enable_delivery_note)
         : store.modules_config?.enable_delivery_note ?? true;
+    const enable_finance_report =
+      body.enable_finance_report !== undefined
+        ? Boolean(body.enable_finance_report)
+        : store.modules_config?.enable_finance_report ?? true;
+    const enable_expense_tracker =
+      body.enable_expense_tracker !== undefined
+        ? Boolean(body.enable_expense_tracker)
+        : store.modules_config?.enable_expense_tracker ?? false;
     const low_stock_threshold = Math.max(
       1,
       Number(body.low_stock_threshold || 10)
@@ -116,6 +132,8 @@ export async function PUT(req: Request) {
         modules_config: {
           upsert: {
             create: {
+              dashboard_focus,
+              item_term,
               custom_attribute_label,
               default_unit,
               enable_expiry_tracking,
@@ -125,10 +143,14 @@ export async function PUT(req: Request) {
               enable_shift_log,
               enable_debt_book,
               enable_delivery_note,
+              enable_finance_report,
+              enable_expense_tracker,
               low_stock_threshold,
               receipt_footer,
             },
             update: {
+              dashboard_focus,
+              item_term,
               custom_attribute_label,
               default_unit,
               enable_expiry_tracking,
@@ -138,6 +160,8 @@ export async function PUT(req: Request) {
               enable_shift_log,
               enable_debt_book,
               enable_delivery_note,
+              enable_finance_report,
+              enable_expense_tracker,
               low_stock_threshold,
               receipt_footer,
             },

@@ -15,6 +15,14 @@ import type {
 import { Check, Upload, X } from "lucide-react";
 import BrandLogo from "@/components/BrandLogo";
 
+const FOCUS_LABELS: Record<string, string> = {
+  KASIR_CEPAT: "Kasir Cepat & Transaksi Harian",
+  STOK_GROSIR: "Pantau Stok, Grosir & Kulakan",
+  KATALOG_ONLINE: "Toko Online & Pesanan WhatsApp",
+  KEUANGAN_LABA: "Rekap Keuangan, Pengeluaran & Untung",
+  UMUM: "Seimbang (Kasir, Stok & Keuangan)",
+};
+
 export default function OnboardingPage() {
   const router = useRouter();
   const [step, setStep] = useState<number>(1);
@@ -715,11 +723,50 @@ export default function OnboardingPage() {
 
               <div className="rounded-[5px] border border-[#d8e1ea] bg-[#f8fafc] p-4">
                 <div className="text-xs text-[#22303c]">
-                  Fitur yang Dinyalakan Sesuai Kebutuhan Anda:
+                  Halaman &amp; Fitur yang Disiapkan Khusus untuk Toko Anda:
                 </div>
+
                 <div className="mt-2.5 grid grid-cols-1 gap-2 text-xs sm:grid-cols-2">
+                  <div className="flex items-center justify-between gap-2 rounded-[4px] border border-[#bfdbfe] bg-white px-3 py-2 sm:col-span-2">
+                    <span className="text-[#5f6f82]">Fokus Tampilan Utama</span>
+                    <span className="op-tag op-tag-info">
+                      {FOCUS_LABELS[provisionResult.dashboard_focus] ||
+                        FOCUS_LABELS.UMUM}
+                    </span>
+                  </div>
+
                   <div className="flex items-center justify-between rounded-[4px] border border-[#d8e1ea] bg-white px-3 py-2">
-                    <span>Pengingat Tanggal Kadaluarsa</span>
+                    <span>Halaman Rekap Keuangan &amp; PDF</span>
+                    <span
+                      className={
+                        provisionResult.enable_finance_report
+                          ? "op-tag op-tag-success"
+                          : "op-tag"
+                      }
+                    >
+                      {provisionResult.enable_finance_report
+                        ? "Tersedia"
+                        : "Disembunyikan"}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between rounded-[4px] border border-[#d8e1ea] bg-white px-3 py-2">
+                    <span>Catat Pengeluaran Usaha</span>
+                    <span
+                      className={
+                        provisionResult.enable_expense_tracker
+                          ? "op-tag op-tag-success"
+                          : "op-tag"
+                      }
+                    >
+                      {provisionResult.enable_expense_tracker
+                        ? "Dipakai"
+                        : "Disembunyikan"}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between rounded-[4px] border border-[#d8e1ea] bg-white px-3 py-2">
+                    <span>Halaman Pantau Kedaluwarsa</span>
                     <span
                       className={
                         provisionResult.enable_expiry_tracking
@@ -728,7 +775,22 @@ export default function OnboardingPage() {
                       }
                     >
                       {provisionResult.enable_expiry_tracking
-                        ? "Dipakai"
+                        ? "Tersedia"
+                        : "Disembunyikan"}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between rounded-[4px] border border-[#d8e1ea] bg-white px-3 py-2">
+                    <span>Halaman Buku Kasbon</span>
+                    <span
+                      className={
+                        provisionResult.enable_debt_book
+                          ? "op-tag op-tag-success"
+                          : "op-tag"
+                      }
+                    >
+                      {provisionResult.enable_debt_book
+                        ? "Tersedia"
                         : "Disembunyikan"}
                     </span>
                   </div>
@@ -781,7 +843,7 @@ export default function OnboardingPage() {
                   </div>
 
                   <div className="flex items-center justify-between rounded-[4px] border border-[#d8e1ea] bg-white px-3 py-2">
-                    <span>Jadwal Jaga Kasir (Shift)</span>
+                    <span>Jadwal Jaga Kasir</span>
                     <span
                       className={
                         provisionResult.enable_shift_log
@@ -796,24 +858,10 @@ export default function OnboardingPage() {
                   </div>
 
                   <div className="flex items-center justify-between rounded-[4px] border border-[#d8e1ea] bg-white px-3 py-2">
-                    <span>Catatan Bon / Kasbon</span>
-                    <span
-                      className={
-                        provisionResult.enable_debt_book
-                          ? "op-tag op-tag-success"
-                          : "op-tag"
-                      }
-                    >
-                      {provisionResult.enable_debt_book
-                        ? "Dipakai"
-                        : "Disembunyikan"}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between rounded-[4px] border border-[#d8e1ea] bg-white px-3 py-2">
-                    <span>Satuan Barang Bawaan</span>
+                    <span>Sebutan Dagangan &amp; Satuan</span>
                     <span className="op-tag op-tag-info">
-                      {provisionResult.default_unit}
+                      {provisionResult.item_term || "Barang"} (
+                      {provisionResult.default_unit})
                     </span>
                   </div>
 

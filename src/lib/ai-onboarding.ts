@@ -18,10 +18,19 @@ export interface StepAnswerInput {
   customNote: string;
 }
 
+export type DashboardFocus =
+  | "KASIR_CEPAT"
+  | "STOK_GROSIR"
+  | "KATALOG_ONLINE"
+  | "KEUANGAN_LABA"
+  | "UMUM";
+
 export interface ProvisionedModulesResult {
   model_used: string;
   dashboard_template: string;
+  dashboard_focus: DashboardFocus;
   template_label: string;
+  item_term: string;
   custom_attribute_label: string;
   default_unit: string;
   enable_expiry_tracking: boolean;
@@ -31,6 +40,8 @@ export interface ProvisionedModulesResult {
   enable_shift_log: boolean;
   enable_debt_book: boolean;
   enable_delivery_note: boolean;
+  enable_finance_report: boolean;
+  enable_expense_tracker: boolean;
   low_stock_threshold: number;
   receipt_footer: string;
   ai_summary_reason: string;
@@ -75,7 +86,9 @@ const PROVISION_SCHEMA: Schema = {
   type: Type.OBJECT,
   properties: {
     dashboard_template: { type: Type.STRING },
+    dashboard_focus: { type: Type.STRING },
     template_label: { type: Type.STRING },
+    item_term: { type: Type.STRING },
     enable_expiry_tracking: { type: Type.BOOLEAN },
     enable_variant_matrix: { type: Type.BOOLEAN },
     custom_attribute_label: { type: Type.STRING },
@@ -85,13 +98,17 @@ const PROVISION_SCHEMA: Schema = {
     enable_shift_log: { type: Type.BOOLEAN },
     enable_debt_book: { type: Type.BOOLEAN },
     enable_delivery_note: { type: Type.BOOLEAN },
+    enable_finance_report: { type: Type.BOOLEAN },
+    enable_expense_tracker: { type: Type.BOOLEAN },
     low_stock_threshold: { type: Type.INTEGER },
     receipt_footer: { type: Type.STRING },
     ai_summary_reason: { type: Type.STRING },
   },
   required: [
     "dashboard_template",
+    "dashboard_focus",
     "template_label",
+    "item_term",
     "enable_expiry_tracking",
     "enable_variant_matrix",
     "custom_attribute_label",
@@ -101,6 +118,8 @@ const PROVISION_SCHEMA: Schema = {
     "enable_shift_log",
     "enable_debt_book",
     "enable_delivery_note",
+    "enable_finance_report",
+    "enable_expense_tracker",
     "low_stock_threshold",
     "receipt_footer",
     "ai_summary_reason",
@@ -240,10 +259,10 @@ export async function generateOnboardingQuestionsAI(params: {
   const prompt = `Pendamping ramah Warungin untuk toko "${storeName}" (Usaha: "${category}").
 Dagangan & kebutuhan: "${description}".
 Buat tepat 3 pertanyaan (array 3 objek) dengan bahasa sehari-hari akrab (sapa "Anda", hindari "Kak", dilarang kata teknis ERP/SKU/varian/tier/modul atau tanda em-dash). Tiap pertanyaan berisi 4 opsi saling melengkapi (pengguna boleh centang >1):
-1. Ciri pembeda barang dagangan ini (misal ukuran/warna/rasa/tipe/garansi/tanggal kedaluwarsa bila relevan) beserta satuannya (pcs/kg/bungkus/dll).
-2. Kebiasaan jualan di kasir (harga beli banyak/grosir, potongan diskon, atau jaga kasir bergantian).
-3. Pembayaran pelanggan (catatan bon/kasbon), kirim pesanan via WhatsApp, dan pengingat stok hampir habis.
-Buat sangat ringkas: title <=4 kata, label <=7 kata, description <=12 kata, notePrompt <=9 kata.`;
+1. Ciri pembeda dagangan ini (apakah ada tanggal kedaluwarsa yang perlu dipantau, ukuran/warna/rasa/tipe/garansi) beserta satuannya (pcs/kg/bungkus/cup/porsi).
+2. Kebiasaan melayani pembeli di kasir (harga beli banyak/grosir, potongan diskon langsung, jaga kasir bergantian, atau cukup hitung belanjaan cepat).
+3. Pembukuan & catatan harian yang diinginkan di halaman toko (rekap keuangan & untung rugi bisa simpan PDF, catat pengeluaran belanja stok/kulakan, buku kasbon pelanggan, serta pengingat stok tipis/antar pesanan).
+Buat ringkas: title <=4 kata, label <=7 kata, description <=12 kata, notePrompt <=9 kata.`;
 
   interface RawQuestionItem {
     title?: string;
@@ -328,28 +347,39 @@ export async function provisionModulesWithAI(params: {
     return `${label}: dipilih=[${picked}] | tambahan="${extra}"`;
   };
 
-  const prompt = `Atur menu toko Warungin agar hanya menyalakan fitur yang benar-benar dibutuhkan:
-Toko: "${params.storeName.slice(0, 80)}" | Usaha: "${params.category.slice(0, 60)}" | Online WA: ${params.isOnlineEnabled ? "Ya" : "Tidak"}
+  const prompt = `Susun halaman kerja Warungin yang BENAR-BENAR BERBEDA sesuai kebutuhan usaha ini (nyalakan hanya halaman & menu yang benar-benar dibutuhkan):
+Toko: "${params.storeName.slice(0, 80)}" | Usaha: "${params.category.slice(0, 60)}" | Toko Online WA: ${params.isOnlineEnabled ? "Ya" : "Tidak"}
 Jualan: "${params.description.slice(0, 300)}"
-${formatCompactStep("1. Ciri Barang & Satuan", params.step3)}
+${formatCompactStep("1. Ciri Dagangan & Satuan", params.step3)}
 ${formatCompactStep("2. Kasir & Harga", params.step4)}
-${formatCompactStep("3. Bayar, Antar & Stok", params.step5)}
+${formatCompactStep("3. Keuangan, Kasbon & Stok", params.step5)}
 
-Aturan:
-- dashboard_template: SEMBAKO_GROSIR | MAKANAN_EXPIRY | FASHION_VARIAN | ELEKTRONIK_GARANSI | RITEL_KUSTOM
-- template_label: nama singkat ramah (cth: Pengaturan Konter Aksesoris & Garansi)
-- enable_expiry_tracking: true HANYA jika barang bisa basi/kedaluwarsa
+Aturan penyesuaian:
+- dashboard_template: SEMBAKO_GROSIR | MAKANAN_EXPIRY | FASHION_VARIAN | ELEKTRONIK_GARANSI | KEUANGAN_USAHA | RITEL_KUSTOM
+- dashboard_focus: pilih SATU fokus tata letak utama:
+  * "KASIR_CEPAT" (kedai minuman/makanan/kue/jualan cepat harian)
+  * "STOK_GROSIR" (warung sembako/grosir/toko bangunan/fokus kulakan & bon)
+  * "KATALOG_ONLINE" (toko baju/aksesoris/fokus pesanan online WhatsApp)
+  * "KEUANGAN_LABA" (pengguna menonjolkan butuh rekap keuangan, pengeluaran, untung rugi, atau laporan PDF)
+  * "UMUM" (campuran seimbang)
+- template_label: nama singkat ramah (cth: Tampilan Kedai & Pantau Kedaluwarsa, atau Tampilan Warung, Kasbon & Keuangan)
+- item_term: 1 kata panggilan dagangan yang paling akrab dengan usaha ini (cth: "Menu", "Kue", "Pakaian", "Obat", "Produk", atau "Barang")
+- enable_expiry_tracking: true HANYA jika barang bisa basi/kedaluwarsa (membuka halaman Pantau Kedaluwarsa)
 - enable_variant_matrix: true jika butuh pembeda ukuran/warna/rasa/tipe/garansi; custom_attribute_label: 2-3 kata paling pas
 - default_unit: 1 kata kecil (pcs/kg/bungkus/cup/porsi/meter/dll)
-- enable_wholesale_tier: beli banyak lebih murah; enable_manual_discount: diskon kasir; enable_shift_log: jaga bergantian; enable_debt_book: catatan kasbon; enable_delivery_note: pilih ambil sendiri atau diantar
+- enable_wholesale_tier: beli banyak lebih murah; enable_manual_discount: diskon kasir; enable_shift_log: jaga bergantian
+- enable_debt_book: true HANYA jika melayani bon/kasbon (membuka halaman Buku Kasbon)
+- enable_finance_report: true jika butuh Rekap Keuangan / untung rugi / cetak PDF (false jika pengguna jelas hanya mau kasir sederhana tanpa laporan keuangan)
+- enable_expense_tracker: true jika butuh catat pengeluaran harian / belanja kulakan
+- enable_delivery_note: pilihan ambil di toko atau diantar untuk toko online
 - low_stock_threshold: angka wajar (pakai angka yang disebut pengguna bila ada)
 - receipt_footer: pesan singkat bawah struk
-- ai_summary_reason: 2 kalimat untuk pemilik toko dalam bahasa sehari-hari (tanpa kata teknis/em-dash) menjelaskan menu apa saja yang dinyalakan di kasir dan stok.`;
+- ai_summary_reason: 2 kalimat untuk pemilik toko dalam bahasa sehari-hari (tanpa kata teknis/em-dash) menjelaskan halaman & menu apa saja yang disiapkan khusus untuk usahanya.`;
 
   const { parsed: rawParsed, modelUsed } = await generateJsonWithCascade({
     prompt,
     responseSchema: PROVISION_SCHEMA,
-    maxOutputTokens: 550,
+    maxOutputTokens: 640,
     temperature: 0.15,
   });
 
@@ -365,10 +395,31 @@ Aturan:
     throw new Error("Hasil penyesuaian menu belum lengkap. Silakan coba sekali lagi.");
   }
 
+  const validFocuses: DashboardFocus[] = [
+    "KASIR_CEPAT",
+    "STOK_GROSIR",
+    "KATALOG_ONLINE",
+    "KEUANGAN_LABA",
+    "UMUM",
+  ];
+  const rawFocus = cleanText(parsed.dashboard_focus, "UMUM").toUpperCase();
+  const dashboardFocus: DashboardFocus = validFocuses.includes(
+    rawFocus as DashboardFocus
+  )
+    ? (rawFocus as DashboardFocus)
+    : "UMUM";
+
+  const rawItemTerm = cleanText(parsed.item_term, "Barang").slice(0, 20);
+  const itemTerm = rawItemTerm
+    ? rawItemTerm.charAt(0).toUpperCase() + rawItemTerm.slice(1)
+    : "Barang";
+
   return {
     model_used: modelUsed,
     dashboard_template: cleanText(parsed.dashboard_template, "RITEL_KUSTOM"),
+    dashboard_focus: dashboardFocus,
     template_label: cleanText(parsed.template_label),
+    item_term: itemTerm,
     custom_attribute_label: cleanText(
       parsed.custom_attribute_label,
       "Ukuran / Pilihan"
@@ -386,6 +437,11 @@ Aturan:
       parsed.enable_delivery_note !== undefined
         ? Boolean(parsed.enable_delivery_note)
         : true,
+    enable_finance_report:
+      parsed.enable_finance_report !== undefined
+        ? Boolean(parsed.enable_finance_report)
+        : true,
+    enable_expense_tracker: Boolean(parsed.enable_expense_tracker),
     low_stock_threshold: Math.max(1, Number(parsed.low_stock_threshold) || 5),
     receipt_footer: cleanText(
       parsed.receipt_footer,

@@ -119,7 +119,9 @@ export async function POST(req: Request) {
 
     const configData = {
       dashboard_template: provisioned.dashboard_template,
+      dashboard_focus: provisioned.dashboard_focus,
       template_label: provisioned.template_label,
+      item_term: provisioned.item_term,
       custom_attribute_label: provisioned.custom_attribute_label,
       default_unit: provisioned.default_unit,
       enable_expiry_tracking: provisioned.enable_expiry_tracking,
@@ -129,6 +131,8 @@ export async function POST(req: Request) {
       enable_shift_log: provisioned.enable_shift_log,
       enable_debt_book: provisioned.enable_debt_book,
       enable_delivery_note: provisioned.enable_delivery_note,
+      enable_finance_report: provisioned.enable_finance_report,
+      enable_expense_tracker: provisioned.enable_expense_tracker,
       low_stock_threshold: provisioned.low_stock_threshold,
       receipt_footer: provisioned.receipt_footer,
       ai_summary_reason: provisioned.ai_summary_reason,

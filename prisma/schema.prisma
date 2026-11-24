@@ -36,6 +36,7 @@ model Store {
   modules_config      ModulesConfig?
   products            Product[]
   transactions        Transaction[]
+  expenses            Expense[]
 }
 
 model ModulesConfig {
@@ -43,7 +44,9 @@ model ModulesConfig {
   store_id                String   @unique
   store                   Store    @relation(fields: [store_id], references: [id], onDelete: Cascade)
   dashboard_template      String   @default("RITEL_UMUM")
-  template_label          String   @default("Tampilan Kasir & Stok Toko Harian")
+  dashboard_focus         String   @default("UMUM") // KASIR_CEPAT | STOK_GROSIR | KATALOG_ONLINE | KEUANGAN_LABA | UMUM
+  template_label          String   @default("Pengaturan Toko Harian")
+  item_term               String   @default("Barang")
   custom_attribute_label  String   @default("Ukuran / Pilihan")
   default_unit            String   @default("pcs")
   enable_expiry_tracking  Boolean  @default(false)
@@ -53,6 +56,8 @@ model ModulesConfig {
   enable_shift_log        Boolean  @default(false)
   enable_debt_book        Boolean  @default(false)
   enable_delivery_note    Boolean  @default(true)
+  enable_finance_report   Boolean  @default(true)
+  enable_expense_tracker  Boolean  @default(false)
   low_stock_threshold     Int      @default(10)
   receipt_footer          String   @default("Terima kasih sudah berbelanja di toko kami.")
   ai_summary_reason       String   @default("")
@@ -120,4 +125,18 @@ model OrderItem {
   normal_price   Int         @default(0)
   qty            Int
   subtotal       Int
+}
+
+model Expense {
+  id          String   @id @default(cuid())
+  store_id    String
+  store       Store    @relation(fields: [store_id], references: [id], onDelete: Cascade)
+  title       String
+  category    String   @default("Belanja Stok")
+  amount      Int
+  note        String?
+  spent_at    DateTime @default(now())
+  created_at  DateTime @default(now())
+
+  @@index([store_id, spent_at])
 }

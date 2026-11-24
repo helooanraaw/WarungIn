@@ -14,8 +14,20 @@ import {
   LogOut,
   Menu,
   X,
+  Wallet,
+  BookOpen,
+  CalendarClock,
 } from "lucide-react";
 import BrandLogo from "@/components/BrandLogo";
+
+interface StoreModulesConfig {
+  dashboard_focus?: string;
+  item_term?: string;
+  enable_expiry_tracking?: boolean;
+  enable_debt_book?: boolean;
+  enable_finance_report?: boolean;
+  enable_expense_tracker?: boolean;
+}
 
 interface StoreInfo {
   id: string;
@@ -24,6 +36,7 @@ interface StoreInfo {
   category: string;
   logo_url: string | null;
   is_online_enabled: boolean;
+  modules_config?: StoreModulesConfig | null;
 }
 
 export function PageHeader({
@@ -114,31 +127,105 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
-    fetch("/api/auth/me")
-      .then((res) => {
-        if (!res.ok) {
-          router.push("/login");
-          return null;
-        }
-        return res.json();
-      })
-      .then((data) => {
-        if (!data?.user) return;
-        setOwnerName(data.user.name || "");
-        setUserEmail(data.user.email || "");
-        if (!data.user.store) {
-          router.push("/onboarding");
-        } else {
-          setStore(data.user.store);
-        }
-      })
-      .catch(() => {});
+    let active = true;
+    const loadStore = () => {
+      fetch("/api/auth/me")
+        .then((res) => {
+          if (!res.ok) {
+            router.push("/login");
+            return null;
+          }
+          return res.json();
+        })
+        .then((data) => {
+          if (!active || !data?.user) return;
+          setOwnerName(data.user.name || "");
+          setUserEmail(data.user.email || "");
+          if (!data.user.store) {
+            router.push("/onboarding");
+          } else {
+            setStore(data.user.store);
+          }
+        })
+        .catch(() => {});
+    };
+
+    loadStore();
+    window.addEventListener("warungin:store-updated", loadStore);
+    return () => {
+      active = false;
+      window.removeEventListener("warungin:store-updated", loadStore);
+    };
   }, [pathname, router]);
 
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
     router.push("/login");
   }
+
+  const config = store?.modules_config;
+  const itemTerm = config?.item_term || "Barang";
+  const hasOnline = store ? store.is_online_enabled : true;
+  const hasExpiry = Boolean(config?.enable_expiry_tracking);
+  const hasDebts = Boolean(config?.enable_debt_book);
+  const hasFinance =
+    config === undefined ||
+    config === null ||
+    Boolean(config.enable_finance_report) ||
+    Boolean(config.enable_expense_tracker);
+  const focus = config?.dashboard_focus || "UMUM";
+
+  const manageItems = [
+    {
+      href: "/dashboard/inventory",
+      label: `${itemTerm} & Stok`,
+      icon: Package,
+    },
+    ...(hasOnline
+      ? [
+          {
+            href: "/dashboard/whatsapp-orders",
+            label: "Pesanan WhatsApp",
+            icon: MessageSquare,
+          },
+        ]
+      : []),
+    ...(hasExpiry
+      ? [
+          {
+            href: "/dashboard/expiry",
+            label: "Pantau Kedaluwarsa",
+            icon: CalendarClock,
+          },
+        ]
+      : []),
+    ...(hasDebts
+      ? [
+          {
+            href: "/dashboard/debts",
+            label: "Buku Kasbon",
+            icon: BookOpen,
+          },
+        ]
+      : []),
+  ];
+
+  const financeItems = [
+    ...(hasFinance
+      ? [
+          {
+            href: "/dashboard/finance",
+            label: "Rekap Keuangan",
+            icon: Wallet,
+          },
+        ]
+      : []),
+    {
+      href: "/dashboard/transactions",
+      label: "Catatan Penjualan",
+      icon: FileText,
+    },
+  ];
 
   const navGroups = [
     {
@@ -158,23 +245,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     },
     {
       label: "KELOLA TOKO",
-      items: [
-        {
-          href: "/dashboard/inventory",
-          label: "Barang & Stok",
-          icon: Package,
-        },
-        {
-          href: "/dashboard/whatsapp-orders",
-          label: "Pesanan WhatsApp",
-          icon: MessageSquare,
-        },
-        {
-          href: "/dashboard/transactions",
-          label: "Catatan Penjualan",
-          icon: FileText,
-        },
-      ],
+      items: manageItems,
+    },
+    {
+      label: "KEUANGAN & CATATAN",
+      items: financeItems,
     },
     {
       label: "PENGATURAN",
@@ -187,6 +262,49 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       ],
     },
   ];
+
+  const fourthTab =
+    focus === "KEUANGAN_LABA" && hasFinance
+      ? {
+          href: "/dashboard/finance",
+          label: "Keuangan",
+          icon: Wallet,
+          isActive: pathname.startsWith("/dashboard/finance"),
+        }
+      : hasOnline
+      ? {
+          href: "/dashboard/whatsapp-orders",
+          label: "Pesanan",
+          icon: MessageSquare,
+          isActive: pathname.startsWith("/dashboard/whatsapp-orders"),
+        }
+      : hasFinance
+      ? {
+          href: "/dashboard/finance",
+          label: "Keuangan",
+          icon: Wallet,
+          isActive: pathname.startsWith("/dashboard/finance"),
+        }
+      : hasDebts
+      ? {
+          href: "/dashboard/debts",
+          label: "Kasbon",
+          icon: BookOpen,
+          isActive: pathname.startsWith("/dashboard/debts"),
+        }
+      : hasExpiry
+      ? {
+          href: "/dashboard/expiry",
+          label: "Kedaluwarsa",
+          icon: CalendarClock,
+          isActive: pathname.startsWith("/dashboard/expiry"),
+        }
+      : {
+          href: "/dashboard/transactions",
+          label: "Penjualan",
+          icon: FileText,
+          isActive: pathname.startsWith("/dashboard/transactions"),
+        };
 
   const bottomTabs = [
     {
@@ -203,21 +321,19 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     },
     {
       href: "/dashboard/inventory",
-      label: "Stok",
+      label: itemTerm.length <= 8 ? itemTerm : "Stok",
       icon: Package,
       isActive: pathname.startsWith("/dashboard/inventory"),
     },
-    {
-      href: "/dashboard/whatsapp-orders",
-      label: "Pesanan",
-      icon: MessageSquare,
-      isActive: pathname.startsWith("/dashboard/whatsapp-orders"),
-    },
+    fourthTab,
   ];
 
+  const bottomHrefs = new Set(bottomTabs.map((t) => t.href));
   const isDrawerRouteActive =
-    pathname.startsWith("/dashboard/transactions") ||
-    pathname.startsWith("/dashboard/settings");
+    pathname !== "/dashboard" &&
+    !Array.from(bottomHrefs).some(
+      (href) => href !== "/dashboard" && pathname.startsWith(href)
+    );
 
   return (
     <div className="op-shell min-h-[100dvh] lg:min-h-screen">

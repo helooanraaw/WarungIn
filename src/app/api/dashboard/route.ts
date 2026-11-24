@@ -20,7 +20,7 @@ export async function GET() {
     const config = store.modules_config;
     const threshold = config?.low_stock_threshold ?? 10;
 
-    const [products, transactions] = await Promise.all([
+    const [products, transactions, expenses] = await Promise.all([
       prisma.product.findMany({
         where: { store_id: store.id },
         orderBy: { created_at: "desc" },
@@ -29,7 +29,12 @@ export async function GET() {
         where: { store_id: store.id },
         include: { items: true },
         orderBy: { created_at: "desc" },
-        take: 50,
+        take: 100,
+      }),
+      prisma.expense.findMany({
+        where: { store_id: store.id },
+        orderBy: { spent_at: "desc" },
+        take: 100,
       }),
     ]);
 
@@ -37,17 +42,60 @@ export async function GET() {
       (t) => t.status === "COMPLETED"
     );
 
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const now = new Date();
+    const todayStr = now.toISOString().slice(0, 10);
+    const monthPrefix = now.toISOString().slice(0, 7);
+
+    const productCostMap = new Map<string, number>();
+    let nilaiStokModal = 0;
+    for (const p of products) {
+      productCostMap.set(p.id, p.cost_price);
+      nilaiStokModal += p.cost_price * Math.max(0, p.stock_qty);
+    }
+
     const todayCompleted = completedTransactions.filter((t) => {
       const d = (t.confirmed_at || t.created_at).toISOString().slice(0, 10);
       return d === todayStr;
     });
+
+    const monthCompleted = completedTransactions.filter((t) => {
+      const d = (t.confirmed_at || t.created_at).toISOString().slice(0, 7);
+      return d === monthPrefix;
+    });
+
+    const calcCogs = (list: typeof completedTransactions) =>
+      list.reduce(
+        (sum, trx) =>
+          sum +
+          trx.items.reduce(
+            (itemSum, item) =>
+              itemSum + (productCostMap.get(item.product_id) ?? 0) * item.qty,
+            0
+          ),
+        0
+      );
 
     const omzetHariIni = todayCompleted.reduce(
       (acc, t) => acc + t.total_amount,
       0
     );
     const transaksiHariIni = todayCompleted.length;
+    const modalHariIni = calcCogs(todayCompleted);
+    const pengeluaranHariIni = expenses
+      .filter((e) => e.spent_at.toISOString().slice(0, 10) === todayStr)
+      .reduce((acc, e) => acc + e.amount, 0);
+    const labaBersihHariIni = omzetHariIni - modalHariIni - pengeluaranHariIni;
+
+    const omzetBulanIni = monthCompleted.reduce(
+      (acc, t) => acc + t.total_amount,
+      0
+    );
+    const modalBulanIni = calcCogs(monthCompleted);
+    const pengeluaranBulanIni = expenses
+      .filter((e) => e.spent_at.toISOString().slice(0, 7) === monthPrefix)
+      .reduce((acc, e) => acc + e.amount, 0);
+    const labaBersihBulanIni =
+      omzetBulanIni - modalBulanIni - pengeluaranBulanIni;
 
     const lowStockProducts = products.filter((p) => p.stock_qty <= threshold);
     const pendingWaOrders = transactions.filter(
@@ -131,11 +179,18 @@ export async function GET() {
         expiringCount: expiringProducts.length,
         unpaidDebtTotal: unpaidDebts.reduce((s, t) => s + t.total_amount, 0),
         unpaidDebtCount: unpaidDebts.length,
+        pengeluaranHariIni,
+        labaBersihHariIni,
+        omzetBulanIni,
+        pengeluaranBulanIni,
+        labaBersihBulanIni,
+        nilaiStokModal,
       },
       recentTransactions: transactions.slice(
         0,
         MICRO_RET_QUOTAS.MAX_RECENT_TRANSACTIONS
       ),
+      recentExpenses: expenses.slice(0, 5),
       topProducts,
       lowStockProducts,
       expiringProducts,
